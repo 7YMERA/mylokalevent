@@ -1,0 +1,51 @@
+# Render Blueprint — deploys MyLokalEvent as a free web service.
+# How to use:
+#   1. Push this repo to GitHub.
+#   2. On render.com -> New -> Blueprint -> connect the repo.
+#   3. Render reads this file. Fill the env vars marked sync:false in the dashboard.
+#   4. Set BASE_URL to the URL Render assigns (e.g. https://mylokalevent.onrender.com).
+services:
+  - type: web
+    name: mylokalevent
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: JWT_SECRET_KEY
+        generateValue: true          # Render generates a strong secret
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: SUPABASE_URL
+        sync: false                  # paste in dashboard
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: uploads
+      - key: BASE_URL
+        sync: false                  # set to your onrender.com URL after first deploy
+      - key: CORS_ORIGINS
+        sync: false                  # same onrender.com URL
+      # External APIs — leave MOCK_* = true until you add real keys.
+      - key: MOCK_PAYMENTS
+        value: "true"
+      - key: MOCK_EMAIL
+        value: "true"
+      - key: MOCK_WEATHER
+        value: "true"
+      - key: TOYYIBPAY_BASE_URL
+        value: https://dev.toyyibpay.com
+      - key: TOYYIBPAY_SECRET_KEY
+        sync: false
+      - key: TOYYIBPAY_CATEGORY_CODE
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
