@@ -1,0 +1,71 @@
+/* MyLokalEvent theme — blue & white palette from the report (§6.2). */
+:root {
+  --primary: #1B6CA8;
+  --secondary: #2E75B6;
+  --accent: #28A745;
+  --warning: #FD7E14;
+  --danger: #DC3545;
+  --light-bg: #F2F7FB;
+}
+
+body {
+  font-family: 'Nunito', system-ui, sans-serif;
+  background: var(--light-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: #243b53;
+}
+
+h1, h2, h3, h4, h5, .navbar-brand { font-family: 'Poppins', sans-serif; }
+
+a { color: var(--secondary); text-decoration: none; }
+a:hover { color: var(--primary); }
+
+.btn-primary { background: var(--primary); border-color: var(--primary); }
+.btn-primary:hover { background: #155a8c; border-color: #155a8c; }
+.btn-outline-primary { color: var(--primary); border-color: var(--primary); }
+.btn-outline-primary:hover { background: var(--primary); border-color: var(--primary); }
+.text-primary { color: var(--primary) !important; }
+
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  padding: 4rem 0 5rem;
+}
+.hero h1 { font-weight: 700; }
+
+/* Cards */
+.card { border: 1px solid #e3edf6; border-radius: 12px; }
+.card-hover { transition: transform .15s, box-shadow .15s; }
+.card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(27,108,168,.14); }
+.event-thumb { height: 170px; object-fit: cover; border-radius: 12px 12px 0 0; background: #dce8f3; }
+
+/* Status badges */
+.badge-pending  { background: var(--warning); }
+.badge-live, .badge-approved, .badge-active { background: var(--accent); }
+.badge-rejected { background: var(--danger); }
+.badge-expired  { background: #6c757d; }
+
+/* KPI cards */
+.kpi { border-radius: 12px; color: #fff; }
+.kpi .kpi-val { font-size: 2rem; font-weight: 700; line-height: 1; }
+.kpi-blue   { background: linear-gradient(135deg,#1B6CA8,#2E75B6); }
+.kpi-green  { background: linear-gradient(135deg,#1f9d57,#28A745); }
+.kpi-orange { background: linear-gradient(135deg,#e8690b,#FD7E14); }
+.kpi-purple { background: linear-gradient(135deg,#6741d9,#845ef7); }
+
+/* Sidebar for role dashboards */
+.dash-sidebar .nav-link { color: #34546f; border-radius: 8px; margin-bottom: 2px; }
+.dash-sidebar .nav-link.active { background: var(--primary); color: #fff; }
+
+/* Audit action colour coding */
+.act-CREATE { color: var(--accent); }
+.act-DELETE { color: var(--danger); }
+.act-APPROVE { color: var(--primary); }
+.act-REJECT { color: var(--warning); }
+.act-LOGIN, .act-LOGOUT, .act-LOGIN_FAILED { color: #6c757d; }
+
+.spinner-wrap { padding: 4rem 0; text-align: center; color: var(--primary); }
+.required::after { content: " *"; color: var(--danger); }

@@ -1,0 +1,60 @@
+"""Application configuration loaded from environment variables (.env)."""
+import os
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Absolute path to backend/.env so it loads no matter the working directory
+# (e.g. when uvicorn is launched from the project root with --app-dir backend).
+_ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=_ENV_PATH, env_file_encoding="utf-8", extra="ignore")
+
+    # App
+    app_name: str = "MyLokalEvent"
+    base_url: str = "http://localhost:8000"
+    cors_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
+
+    # JWT / security
+    jwt_secret_key: str = "change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
+    max_login_attempts: int = 5
+    lockout_minutes: int = 15
+
+    # Supabase
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_storage_bucket: str = "uploads"
+
+    # ToyyibPay
+    toyyibpay_base_url: str = "https://dev.toyyibpay.com"
+    toyyibpay_secret_key: str = ""
+    toyyibpay_category_code: str = ""
+
+    # SendGrid
+    sendgrid_api_key: str = ""
+    sendgrid_from_email: str = "no-reply@example.com"
+    sendgrid_from_name: str = "MyLokalEvent"
+
+    # OpenWeatherMap
+    openweather_api_key: str = ""
+
+    # Feature flags
+    mock_payments: bool = False
+    mock_email: bool = False
+    mock_weather: bool = False
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
