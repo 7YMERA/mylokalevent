@@ -5,6 +5,7 @@
 -- =============================================================================
 
 -- ---- Clean slate (dev only) -------------------------------------------------
+drop table if exists posts cascade;
 drop table if exists saved_events cascade;
 drop table if exists notifications cascade;
 drop table if exists audit_logs cascade;
@@ -189,6 +190,19 @@ create table saved_events (
     primary key (user_id, event_id)
 );
 
+-- ---- 13. posts (community feed) --------------------------------------------
+create table posts (
+    id         bigint generated always as identity primary key,
+    user_id    bigint not null references users(id) on delete cascade,
+    caption    text not null,
+    image_url  varchar(500),
+    state      varchar(50),
+    district   varchar(50),
+    event_id   bigint references events(id) on delete set null,
+    likes      int not null default 0,
+    created_at timestamptz not null default now()
+);
+
 -- ---- Indexes for search / filtering ----------------------------------------
 create index idx_events_state     on events(state);
 create index idx_events_district  on events(district);
@@ -201,6 +215,8 @@ create index idx_audit_user       on audit_logs(user_id);
 create index idx_audit_action     on audit_logs(action);
 create index idx_audit_created    on audit_logs(created_at);
 create index idx_payments_user    on payments(user_id);
+create index idx_posts_created     on posts(created_at desc);
+create index idx_posts_event       on posts(event_id);
 
 -- =============================================================================
 -- SEED DATA

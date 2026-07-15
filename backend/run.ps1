@@ -1,4 +1,4 @@
-# Start the MyLokalEvent backend (Windows / PowerShell).
+z# Start the MyLokalEvent backend (Windows / PowerShell).
 # Usage:  ./run.ps1
 if (-not (Test-Path ".venv")) {
     Write-Host "Creating virtual environment (Python 3.13)..." -ForegroundColor Cyan

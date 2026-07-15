@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -25,6 +24,7 @@ from app.routers import (  # noqa: E402
     meta,
     news,
     payments,
+    posts,
     spots,
 )
 
@@ -73,6 +73,7 @@ app.include_router(ads.router, prefix="/api/advertisements", tags=["advertisemen
 app.include_router(news.router, prefix="/api/news", tags=["news"])
 app.include_router(fish.router, prefix="/api/fish-catches", tags=["fish-catches"])
 app.include_router(spots.router, prefix="/api/spots", tags=["fishing-spots"])
+app.include_router(posts.router, prefix="/api/posts", tags=["community-feed"])
 app.include_router(payments.router, prefix="/api/payment", tags=["payments"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
@@ -80,11 +81,10 @@ app.include_router(me.router, prefix="/api/me", tags=["me"])
 app.include_router(meta.router, prefix="/api", tags=["meta"])
 
 
-# --- Static frontend ---
-# Serve /static/* assets and fall back to index.html for the SPA-style frontend.
+# --- Static frontend (local dev convenience) ---
+# In production the frontend is deployed separately to Vercel; locally FastAPI
+# also serves it at the root so `http://localhost:8123` shows the full app.
+# Mounted LAST so all /api routes above take precedence. html=True serves
+# index.html at "/" and resolves relative asset paths (css/…, js/…).
 if os.path.isdir(FRONTEND_DIR):
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-    @app.get("/", include_in_schema=False)
-    async def index():
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

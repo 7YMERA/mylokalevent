@@ -4,81 +4,209 @@ const Public = (() => {
 
   // ---------- Screen 1: Homepage ----------
   async function home() {
+    const user = API.getUser();
     app().innerHTML = `
       <section class="hero">
         <div class="container text-center">
           <h1 class="display-5">Discover Local Events &amp; Fresh Catches</h1>
           <p class="lead mb-4">Fishing competitions, coastal markets &amp; community gatherings across Malaysia.</p>
-          <form class="row g-2 justify-content-center" onsubmit="Public.heroSearch(event)">
-            <div class="col-md-3"><select id="hState" class="form-select"><option value="">All States</option>
-              ${STATES.map(s => `<option>${s}</option>`).join('')}</select></div>
-            <div class="col-md-4"><input id="hKeyword" class="form-control" placeholder="Search events…"></div>
-            <div class="col-md-2"><button class="btn btn-light text-primary fw-bold w-100"><i class="bi bi-search"></i> Search</button></div>
-          </form>
+          <div class="d-flex gap-2 justify-content-center flex-wrap">
+            <a href="#/events" class="btn btn-light btn-lg text-primary fw-bold"><i class="bi bi-search"></i> Search &amp; Filter Events</a>
+            <a href="#/catches" class="btn btn-outline-light btn-lg"><i class="bi bi-fish"></i> Catch of the Day</a>
+          </div>
         </div>
       </section>
       <div class="container mt-4">
-        <div class="row">
-          <div class="col-lg-8">
-            <h4 class="mb-3"><i class="bi bi-stars text-primary"></i> Featured Events</h4>
-            <div class="row" id="featured">${spinner()}</div>
-          </div>
-          <aside class="col-lg-4">
-            <h5 class="mb-3"><i class="bi bi-megaphone text-primary"></i> Sponsored</h5>
-            <div id="adPanel">${spinner()}</div>
-          </aside>
+        <!-- Featured events -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h4 class="mb-0"><i class="bi bi-stars text-primary"></i> Featured Events</h4>
+          <a href="#/events" class="btn btn-sm btn-outline-primary">View all &amp; filter <i class="bi bi-arrow-right"></i></a>
         </div>
+        <div class="row" id="featured">${spinner()}</div>
+
+        <!-- Sponsored strip -->
+        <div id="adStrip" class="mb-2"></div>
+
+        <!-- Community feed -->
+        <div class="d-flex justify-content-between align-items-center mb-1 mt-4">
+          <h4 class="mb-0"><i class="bi bi-people text-primary"></i> Community Feed</h4>
+          ${user
+            ? `<button class="btn btn-sm btn-primary" onclick="Public.toggleComposer()"><i class="bi bi-plus-circle"></i> Share a post</button>`
+            : `<a href="#/login" class="btn btn-sm btn-outline-primary">Log in to share</a>`}
+        </div>
+        <p class="text-muted small mb-3">What anglers are sharing — catches, activities, and events they're joining.</p>
+        <div id="composer" class="mb-3"></div>
+        <div class="row" id="feed">${spinner()}</div>
       </div>`;
+    loadFeatured();
+    loadAdStrip();
+    loadFeed();
+  }
+
+  async function loadFeatured() {
     try {
-      const data = await API.get('/events?sort=newest&page_size=6');
+      const data = await API.get('/events?sort=popular&page_size=6');
       document.getElementById('featured').innerHTML = data.items.length
         ? data.items.map(eventCard).join('') : empty('No events yet. Check back soon!', 'calendar-x');
     } catch (e) { document.getElementById('featured').innerHTML = empty(e.message, 'exclamation-triangle'); }
+  }
+
+  async function loadAdStrip() {
     try {
-      const ads = await API.get('/advertisements?page_size=4');
-      const box = document.getElementById('adPanel');
-      box.innerHTML = ads.items.length ? ads.items.map(a => `
-        <a href="/api/advertisements/${a.id}/click" target="_blank" class="d-block mb-3"
-           onclick="fetch('/api/advertisements/${a.id}/impression',{method:'POST'})">
-          ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded shadow-sm">`
-            : `<div class="card card-body text-center text-primary">${esc(a.title)}</div>`}
-        </a>`).join('') : `<div class="card card-body text-muted small text-center">Your ad here</div>`;
-    } catch { document.getElementById('adPanel').innerHTML = ''; }
+      const ads = await API.get('/advertisements?page_size=1');
+      const box = document.getElementById('adStrip');
+      if (!ads.items.length) { box.innerHTML = ''; return; }
+      const a = ads.items[0];
+      box.innerHTML = `<a href="${API.url('/advertisements/' + a.id + '/click')}" target="_blank"
+          class="d-block position-relative text-decoration-none"
+          onclick="fetch(API.url('/advertisements/${a.id}/impression'),{method:'POST'})">
+        <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
+        ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded shadow-sm w-100" style="max-height:140px;object-fit:cover">`
+          : `<div class="card card-body text-center text-primary">${esc(a.title)}</div>`}</a>`;
+    } catch { document.getElementById('adStrip').innerHTML = ''; }
   }
 
-  function heroSearch(e) {
-    e.preventDefault();
-    const s = document.getElementById('hState').value, k = document.getElementById('hKeyword').value;
-    location.hash = `#/events?state=${encodeURIComponent(s)}&q=${encodeURIComponent(k)}`;
+  // ---------- Community feed ----------
+  function timeAgo(iso) {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24); if (d < 7) return `${d}d ago`;
+    return fmtDate(iso);
   }
 
-  // ---------- Screen 2: Events list + filter ----------
+  function feedCard(p) {
+    const initial = (p.author_name || '?').trim().charAt(0).toUpperCase();
+    const locTag = p.state
+      ? `<a href="#/events?state=${encodeURIComponent(p.state)}" class="badge bg-light text-primary border text-decoration-none me-1">
+           <i class="bi bi-geo-alt"></i> ${esc(p.district ? p.district + ', ' : '')}${esc(p.state)}</a>` : '';
+    const evTag = (p.event_id && p.event_title)
+      ? `<a href="#/events/${p.event_id}" class="badge bg-primary text-decoration-none">
+           <i class="bi bi-calendar-event"></i> ${esc(p.event_title)}</a>` : '';
+    const user = API.getUser();
+    const canDelete = user && (user.role === 'admin' || user.id === p.user_id);
+    return `<div class="col-md-6 col-lg-4 mb-4"><div class="card card-hover h-100">
+      <div class="card-body pb-2">
+        <div class="d-flex align-items-center mb-2">
+          <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
+               style="width:40px;height:40px;background:var(--secondary)">${initial}</div>
+          <div class="ms-2">
+            <div class="fw-bold" style="line-height:1">${esc(p.author_name)}</div>
+            <small class="text-muted">${esc(p.author_role)} · ${timeAgo(p.created_at)}</small>
+          </div>
+          ${canDelete ? `<button class="btn btn-sm btn-link text-danger ms-auto p-0" title="Delete"
+             onclick="Public.deletePost(${p.id})"><i class="bi bi-trash"></i></button>` : ''}
+        </div>
+        <p class="mb-2">${esc(p.caption)}</p>
+      </div>
+      ${p.image_url ? `<img src="${esc(p.image_url)}" class="w-100" style="max-height:220px;object-fit:cover">` : ''}
+      <div class="card-body pt-2">
+        <div class="mb-2">${locTag}${evTag}</div>
+        <button class="btn btn-sm btn-outline-danger" onclick="Public.likePost(${p.id}, this)">
+          <i class="bi bi-heart-fill"></i> <span>${p.likes || 0}</span></button>
+      </div></div></div>`;
+  }
+
+  async function loadFeed() {
+    try {
+      const data = await API.get('/posts?page_size=12');
+      document.getElementById('feed').innerHTML = data.items.length
+        ? data.items.map(feedCard).join('')
+        : empty('No posts yet. Be the first to share your catch!', 'chat-square-heart');
+    } catch (e) { document.getElementById('feed').innerHTML = empty(e.message, 'exclamation-triangle'); }
+  }
+
+  async function toggleComposer() {
+    const box = document.getElementById('composer');
+    if (box.innerHTML.trim()) { box.innerHTML = ''; return; }
+    // populate an event dropdown (optional "joining this event" tag)
+    let events = [];
+    try { events = (await API.get('/events?page_size=50')).items; } catch {}
+    box.innerHTML = `<div class="card card-body">
+      <textarea id="pcCaption" class="form-control mb-2" rows="2" maxlength="500"
+        placeholder="Share your catch or activity…"></textarea>
+      <div class="row g-2">
+        <div class="col-md-4"><input id="pcImg" class="form-control form-control-sm" placeholder="Image URL (optional)"></div>
+        <div class="col-md-3"><select id="pcState" class="form-select form-select-sm"><option value="">Tag a state…</option>
+          ${STATES.map(s => `<option>${s}</option>`).join('')}</select></div>
+        <div class="col-md-3"><input id="pcDistrict" class="form-control form-select-sm form-control-sm" placeholder="District (optional)"></div>
+        <div class="col-md-2"><select id="pcEvent" class="form-select form-select-sm"><option value="">Event…</option>
+          ${events.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 30))}</option>`).join('')}</select></div>
+      </div>
+      <div class="mt-2 text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="Public.toggleComposer()">Cancel</button>
+        <button class="btn btn-sm btn-primary" onclick="Public.submitPost()"><i class="bi bi-send"></i> Post</button>
+      </div></div>`;
+  }
+
+  async function submitPost() {
+    const caption = document.getElementById('pcCaption').value.trim();
+    if (!caption) { UI.toast('Write something first', 'warning'); return; }
+    try {
+      await API.post('/posts', {
+        caption,
+        image_url: document.getElementById('pcImg').value || null,
+        state: document.getElementById('pcState').value || null,
+        district: document.getElementById('pcDistrict').value || null,
+        event_id: +document.getElementById('pcEvent').value || null,
+      });
+      UI.toast('Posted to the community feed!', 'success');
+      document.getElementById('composer').innerHTML = '';
+      loadFeed();
+    } catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
+  async function likePost(id, btn) {
+    if (!API.isAuthed()) { UI.toast('Log in to like posts', 'warning'); return; }
+    try {
+      const r = await API.post(`/posts/${id}/like`);
+      btn.querySelector('span').textContent = r.likes;
+      btn.classList.replace('btn-outline-danger', 'btn-danger');
+    } catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
+  async function deletePost(id) {
+    if (!confirm('Delete this post?')) return;
+    try { await API.del(`/posts/${id}`); UI.toast('Post deleted', 'success'); loadFeed(); }
+    catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
+  // ---------- Screen 2: Events list + responsive filter ----------
+  // Filters apply live in-place (no page reload) so typing/selecting updates
+  // results instantly without losing input focus.
+  let _searchTimer;
+
   async function events(params) {
     const f = Object.assign({ q: '', state: '', district: '', category_id: '', fee: '', sort: 'newest', page: 1 }, params);
     app().innerHTML = `<div class="container py-4"><div class="row">
       <aside class="col-lg-3 mb-4">
         <div class="card card-body">
-          <h6 class="fw-bold mb-3"><i class="bi bi-funnel"></i> Filters</h6>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+            <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="Public.clearFilters()">Clear</button>
+          </div>
           <div class="mb-2"><label class="form-label small">Keyword</label>
-            <input id="fq" class="form-control form-control-sm" value="${esc(f.q)}"></div>
+            <input id="fq" class="form-control form-control-sm" value="${esc(f.q)}"
+              placeholder="Search title…" oninput="Public.debouncedRefresh()"></div>
           <div class="mb-2"><label class="form-label small">State</label>
-            <select id="fstate" class="form-select form-select-sm"><option value="">All</option>
+            <select id="fstate" class="form-select form-select-sm" onchange="Public.refreshResults(1)"><option value="">All</option>
               ${STATES.map(s => `<option ${s === f.state ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
           <div class="mb-2"><label class="form-label small">District</label>
-            <input id="fdistrict" class="form-control form-control-sm" value="${esc(f.district)}"></div>
+            <input id="fdistrict" class="form-control form-control-sm" value="${esc(f.district)}"
+              placeholder="e.g. Kuantan" oninput="Public.debouncedRefresh()"></div>
           <div class="mb-2"><label class="form-label small">Category</label>
-            <select id="fcat" class="form-select form-select-sm"><option value="">All</option></select></div>
+            <select id="fcat" class="form-select form-select-sm" onchange="Public.refreshResults(1)"><option value="">All</option></select></div>
           <div class="mb-3"><label class="form-label small">Fee</label>
-            <select id="ffee" class="form-select form-select-sm">
+            <select id="ffee" class="form-select form-select-sm" onchange="Public.refreshResults(1)">
               <option value="">Any</option><option value="free" ${f.fee==='free'?'selected':''}>Free</option>
               <option value="paid" ${f.fee==='paid'?'selected':''}>Paid</option></select></div>
-          <button class="btn btn-primary btn-sm w-100" onclick="Public.applyFilters()">Apply</button>
         </div>
       </aside>
       <div class="col-lg-9">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="mb-0">Events</h4>
-          <select id="fsort" class="form-select form-select-sm w-auto" onchange="Public.applyFilters()">
+          <div><h4 class="mb-0">Events</h4><small class="text-muted" id="evCount"></small></div>
+          <select id="fsort" class="form-select form-select-sm w-auto" onchange="Public.refreshResults(1)">
             <option value="newest" ${f.sort==='newest'?'selected':''}>Newest</option>
             <option value="popular" ${f.sort==='popular'?'selected':''}>Most Popular</option>
             <option value="upcoming" ${f.sort==='upcoming'?'selected':''}>Upcoming</option>
@@ -88,36 +216,55 @@ const Public = (() => {
         <nav id="evPager" class="mt-3"></nav>
       </div></div></div>`;
 
-    // categories
+    // categories (pre-select if the incoming params requested one)
     try {
       const cats = await API.get('/categories?kind=event');
       document.getElementById('fcat').innerHTML = '<option value="">All</option>' +
         cats.map(c => `<option value="${c.id}" ${String(c.id) === String(f.category_id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
     } catch {}
 
+    refreshResults(f.page || 1);
+  }
+
+  function debouncedRefresh() {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => refreshResults(1), 300);
+  }
+
+  function clearFilters() {
+    ['fq', 'fdistrict'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['fstate', 'fcat', 'ffee'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const sort = document.getElementById('fsort'); if (sort) sort.value = 'newest';
+    refreshResults(1);
+  }
+
+  async function refreshResults(page) {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const f = {
+      q: val('fq'), state: val('fstate'), district: val('fdistrict'),
+      category_id: val('fcat'), fee: val('ffee'), sort: val('fsort') || 'newest',
+      page: page || 1,
+    };
+    Public._f = f;
+    const grid = document.getElementById('evResults');
+    if (!grid) return;
+    grid.innerHTML = spinner();
     try {
       const data = await API.get('/events' + API.qs(f));
-      document.getElementById('evResults').innerHTML = data.items.length
+      grid.innerHTML = data.items.length
         ? data.items.map(eventCard).join('') : empty('No events match your filters.', 'search');
-      // pager
+      const cnt = document.getElementById('evCount');
+      if (cnt) cnt.textContent = data.total ? `${data.total} event${data.total > 1 ? 's' : ''} found` : '';
+      const pager = document.getElementById('evPager');
       if (data.pages > 1) {
         let h = '<ul class="pagination justify-content-center">';
         for (let p = 1; p <= data.pages; p++)
-          h += `<li class="page-item ${p === data.page ? 'active' : ''}"><a class="page-link" href="#" onclick="Public.gotoPage(${p});return false">${p}</a></li>`;
-        document.getElementById('evPager').innerHTML = h + '</ul>';
-      }
-    } catch (e) { document.getElementById('evResults').innerHTML = empty(e.message, 'exclamation-triangle'); }
-    Public._f = f;
+          h += `<li class="page-item ${p === data.page ? 'active' : ''}"><a class="page-link" href="#" onclick="Public.refreshResults(${p});return false">${p}</a></li>`;
+        pager.innerHTML = h + '</ul>';
+      } else { pager.innerHTML = ''; }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { grid.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
-  function applyFilters() {
-    const f = {
-      q: document.getElementById('fq').value, state: document.getElementById('fstate').value,
-      district: document.getElementById('fdistrict').value, category_id: document.getElementById('fcat').value,
-      fee: document.getElementById('ffee').value, sort: document.getElementById('fsort').value, page: 1,
-    };
-    location.hash = '#/events' + API.qs(f);
-  }
-  function gotoPage(p) { const f = Object.assign({}, Public._f, { page: p }); location.hash = '#/events' + API.qs(f); }
 
   // ---------- Screen 3: Event detail ----------
   async function eventDetail(id) {
@@ -228,5 +375,6 @@ const Public = (() => {
     } catch (e) { document.getElementById('newsList').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  return { home, heroSearch, events, applyFilters, gotoPage, eventDetail, saveEvent, catches, spots, news, _f: {} };
+  return { home, loadFeatured, loadAdStrip, loadFeed, toggleComposer, submitPost, likePost, deletePost,
+    events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news, _f: {} };
 })();

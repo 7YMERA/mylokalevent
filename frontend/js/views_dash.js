@@ -235,7 +235,7 @@ const Dash = (() => {
   async function exportAudit(e) {
     e.preventDefault();
     try {
-      const res = await fetch('/api/analytics/audit-logs/export', { headers: { Authorization: `Bearer ${API.getToken()}` } });
+      const res = await fetch(API.url('/analytics/audit-logs/export'), { headers: { Authorization: `Bearer ${API.getToken()}` } });
       const blob = await res.blob();
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'audit_logs.csv'; a.click();
       UI.toast('Audit log exported','success');
