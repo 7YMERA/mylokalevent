@@ -16,6 +16,11 @@ const API = (() => {
     localStorage.removeItem(USER_KEY);
   }
 
+  const base = () => (window.MLE_API_BASE || '');
+  // Absolute URL for an /api path — used for fetch and for links/redirects
+  // (e.g. ad click-through) so they work when frontend & backend differ in origin.
+  const url = (path) => `${base()}/api${path}`;
+
   async function request(method, path, body, isForm = false) {
     const headers = {};
     const token = getToken();
@@ -25,7 +30,7 @@ const API = (() => {
       if (isForm) { payload = body; }
       else { headers['Content-Type'] = 'application/json'; payload = JSON.stringify(body); }
     }
-    const res = await fetch(`/api${path}`, { method, headers, body: payload });
+    const res = await fetch(url(path), { method, headers, body: payload });
     if (res.status === 401) {
       clearSession();
       if (!location.hash.startsWith('#/login')) location.hash = '#/login';
@@ -68,5 +73,5 @@ const API = (() => {
     return s ? `?${s}` : '';
   };
 
-  return { get, post, put, del, login, register, logout, getUser, getToken, isAuthed, clearSession, qs };
+  return { get, post, put, del, login, register, logout, getUser, getToken, isAuthed, clearSession, qs, base, url };
 })();
