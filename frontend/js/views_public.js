@@ -2,6 +2,29 @@
 const Public = (() => {
   const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventCard, STATES } = UI;
 
+  // Map an OpenWeatherMap icon code (or condition) to a Bootstrap Icon —
+  // reliable and on-theme, unlike OWM's image CDN (often blocked/unreachable).
+  function weatherIcon(code, condition) {
+    const c = (code || '').slice(0, 2);
+    const map = { '01': 'bi-sun-fill', '02': 'bi-cloud-sun-fill', '03': 'bi-cloud-fill',
+      '04': 'bi-clouds-fill', '09': 'bi-cloud-drizzle-fill', '10': 'bi-cloud-rain-heavy-fill',
+      '11': 'bi-cloud-lightning-rain-fill', '13': 'bi-cloud-snow-fill', '50': 'bi-cloud-fog2-fill' };
+    if (map[c]) return map[c];
+    const t = (condition || '').toLowerCase();
+    if (t.includes('rain') || t.includes('drizzle')) return 'bi-cloud-rain-heavy-fill';
+    if (t.includes('thunder') || t.includes('storm')) return 'bi-cloud-lightning-rain-fill';
+    if (t.includes('cloud')) return 'bi-clouds-fill';
+    if (t.includes('clear') || t.includes('sun')) return 'bi-sun-fill';
+    return 'bi-cloud-sun-fill';
+  }
+
+  // "2026-07-16" -> "Thu 16 Jul" (falls back to the raw string for non-dates).
+  function weatherDay(s) {
+    const d = new Date(s);
+    if (isNaN(d)) return s;
+    return d.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
   // ---------- Screen 1: Homepage ----------
   async function home() {
     const user = API.getUser();
@@ -106,9 +129,72 @@ const Public = (() => {
       ${p.image_url ? `<img src="${esc(p.image_url)}" class="w-100" style="max-height:220px;object-fit:cover">` : ''}
       <div class="card-body pt-2">
         <div class="mb-2">${locTag}${evTag}</div>
-        <button class="btn btn-sm btn-outline-danger" onclick="Public.likePost(${p.id}, this)">
-          <i class="bi bi-heart-fill"></i> <span>${p.likes || 0}</span></button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-danger" onclick="Public.likePost(${p.id}, this)">
+            <i class="bi bi-heart-fill"></i> <span>${p.likes || 0}</span></button>
+          <button class="btn btn-sm btn-outline-primary" onclick="Public.toggleComments(${p.id}, this)">
+            <i class="bi bi-chat"></i> <span>${p.comment_count || 0}</span></button>
+        </div>
+        <div id="comments-${p.id}" class="mt-2"></div>
       </div></div></div>`;
+  }
+
+  // Toggle & load the comments panel for a post.
+  async function toggleComments(postId, btn) {
+    const box = document.getElementById(`comments-${postId}`);
+    if (box.dataset.open === '1') { box.innerHTML = ''; box.dataset.open = ''; return; }
+    box.dataset.open = '1';
+    box.innerHTML = '<div class="text-muted small">Loading comments…</div>';
+    try {
+      const comments = await API.get(`/posts/${postId}/comments`);
+      const me = API.getUser();
+      const list = comments.map(c => {
+        const av = c.author_image
+          ? `<img src="${esc(c.author_image)}" class="rounded-circle" style="width:26px;height:26px;object-fit:cover">`
+          : `<div class="rounded-circle text-white d-flex align-items-center justify-content-center"
+                 style="width:26px;height:26px;background:var(--secondary);font-size:.7rem">${esc((c.author_name||'?').charAt(0).toUpperCase())}</div>`;
+        const canDel = me && (me.role === 'admin' || me.id === c.user_id);
+        return `<div class="d-flex align-items-start gap-2 mb-2">
+          ${av}
+          <div class="flex-grow-1 bg-light rounded p-2">
+            <div class="small fw-bold">${esc(c.author_name)} <span class="text-muted fw-normal">· ${timeAgo(c.created_at)}</span>
+              ${canDel ? `<i class="bi bi-x text-danger float-end" role="button" onclick="Public.deleteComment(${c.id}, ${postId})"></i>` : ''}</div>
+            <div class="small">${esc(c.body)}</div>
+          </div></div>`;
+      }).join('') || '<div class="text-muted small mb-2">No comments yet — be the first!</div>';
+      const composer = API.isAuthed()
+        ? `<div class="input-group input-group-sm">
+             <input id="cmt-${postId}" class="form-control" placeholder="Write a comment…"
+               onkeydown="if(event.key==='Enter')Public.submitComment(${postId})">
+             <button class="btn btn-primary" onclick="Public.submitComment(${postId})"><i class="bi bi-send"></i></button>
+           </div>`
+        : '<a href="#/login" class="small">Log in to comment</a>';
+      box.innerHTML = `<hr class="my-2"><div>${list}</div>${composer}`;
+      if (btn) btn.classList.replace('btn-outline-primary', 'btn-primary');
+    } catch (e) { box.innerHTML = `<div class="text-danger small">${esc(e.message)}</div>`; }
+  }
+
+  async function submitComment(postId) {
+    const input = document.getElementById(`cmt-${postId}`);
+    const body = (input.value || '').trim();
+    if (!body) return;
+    try {
+      await API.post(`/posts/${postId}/comments`, { body });
+      // reload the comments panel + bump the count badge
+      const box = document.getElementById(`comments-${postId}`);
+      box.dataset.open = '';
+      await toggleComments(postId);
+      UI.toast('Comment posted', 'success');
+    } catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
+  async function deleteComment(commentId, postId) {
+    try {
+      await API.del(`/posts/comments/${commentId}`);
+      const box = document.getElementById(`comments-${postId}`);
+      box.dataset.open = '';
+      await toggleComments(postId);
+    } catch (e) { UI.toast(e.message, 'danger'); }
   }
 
   async function loadFeed() {
@@ -310,12 +396,25 @@ const Public = (() => {
             <div id="weatherBox"></div>
           </div>
           <aside class="col-lg-4">
-            <div class="card card-body">
+            <div class="card card-body mb-3">
               <h6 class="fw-bold">Event Details</h6>
               <p class="mb-1"><i class="bi bi-calendar3 text-primary"></i> <b>Start:</b><br>${fmtDateTime(ev.start_date)}</p>
               <p class="mb-1"><i class="bi bi-calendar-check text-primary"></i> <b>End:</b><br>${fmtDateTime(ev.end_date)}</p>
               <p class="mb-1"><i class="bi bi-cash-coin text-primary"></i> <b>Entry Fee:</b> ${Number(ev.entry_fee) > 0 ? money(ev.entry_fee) : 'Free'}</p>
               <p class="mb-0"><i class="bi bi-eye text-primary"></i> ${ev.view_count || 0} views</p>
+            </div>
+            <div class="card card-body">
+              <h6 class="fw-bold"><i class="bi bi-person-badge text-primary"></i> Organizer</h6>
+              <p class="mb-2">${esc(ev.organizer_name || 'Event Organizer')}</p>
+              <div class="d-grid gap-2">
+                ${ev.organizer_email
+                  ? `<a href="mailto:${esc(ev.organizer_email)}?subject=${encodeURIComponent('Enquiry: ' + ev.title)}" class="btn btn-outline-primary btn-sm"><i class="bi bi-envelope"></i> Email Organizer</a>`
+                  : ''}
+                ${ev.organizer_phone
+                  ? `<a href="tel:${esc(ev.organizer_phone)}" class="btn btn-outline-primary btn-sm"><i class="bi bi-telephone"></i> ${esc(ev.organizer_phone)}</a>`
+                  : ''}
+                ${!ev.organizer_email && !ev.organizer_phone ? '<span class="text-muted small">No contact details provided.</span>' : ''}
+              </div>
             </div>
           </aside>
         </div></div>`;
@@ -327,8 +426,8 @@ const Public = (() => {
             ${w.mock ? '<span class="badge bg-secondary">demo</span>' : ''}</h6>
           <div class="row text-center g-2">${w.forecast.map(d => `
             <div class="col"><div class="card card-body p-2">
-              <small class="text-muted">${esc(d.date)}</small>
-              <img src="https://openweathermap.org/img/wn/${d.icon}@2x.png" width="48" class="mx-auto">
+              <small class="text-muted">${esc(weatherDay(d.date))}</small>
+              <i class="bi ${weatherIcon(d.icon, d.condition)} text-primary my-1" style="font-size:1.9rem"></i>
               <b>${d.temp}°C</b><small>${esc(d.condition)}</small>
               <small class="text-muted"><i class="bi bi-wind"></i> ${d.wind} m/s</small>
             </div></div>`).join('')}</div>`;
@@ -397,6 +496,7 @@ const Public = (() => {
   }
 
   return { home, loadFeatured, loadAdStrip, loadFeed, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
+    toggleComments, submitComment, deleteComment,
     events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news,
     _f: {}, _composerEvents: [] };
 })();

@@ -18,6 +18,7 @@ from app.dependencies import (
     require_roles,
 )
 from app.schemas.events import EventCreate, EventUpdate
+from app.services.email_service import send_event_submitted
 from app.services.payment_service import create_posting_payment
 
 router = APIRouter()
@@ -104,6 +105,13 @@ async def get_event(event_id: int, increment_view: bool = True):
             "id", event_id
         ).execute()
         event["view_count"] = (event.get("view_count") or 0) + 1
+
+    # Attach organizer contact info so the public can reach out.
+    org = db.table("users").select("name,email,phone").eq("id", event["organizer_id"]).execute().data
+    if org:
+        event["organizer_name"] = org[0]["name"]
+        event["organizer_email"] = org[0]["email"]
+        event["organizer_phone"] = org[0].get("phone")
     return event
 
 
@@ -137,6 +145,11 @@ async def create_event(
         new_value={"title": created["title"], "status": created["status"]},
         ip_address=_client_ip(request), user_agent=request.headers.get("user-agent"),
     )
+
+    # Email the organizer: event received, pending approval.
+    if user.email:
+        send_event_submitted(user.email, created["title"])
+
     return {"event": created, "payment": payment}
 
 
