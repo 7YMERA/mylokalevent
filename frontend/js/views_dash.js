@@ -16,7 +16,10 @@ const Dash = (() => {
   const shell = (title, sidebarActive, body) => {
     const u = API.getUser();
     const links = {
-      organizer: [['#/organizer','Dashboard','speedometer2'],['#/create-event','Post Event','plus-circle']],
+      organizer: [['#/organizer','Dashboard','speedometer2'],
+                  ['#/create-event','Post Event','plus-circle'],
+                  ['#/advertiser/new','Create Ad','megaphone'],
+                  ['#/advertiser','My Campaigns','collection']],
       advertiser: [['#/advertiser','Dashboard','speedometer2'],['#/advertiser/new','New Campaign','plus-circle']],
       fisherman: [['#/fisherman','Dashboard','speedometer2']],
       // 4th item (optional) = id for a live count badge
@@ -73,7 +76,11 @@ const Dash = (() => {
           ${kpi(d.total_views,'Total Views','kpi-purple','eye')}
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-          <h5 class="mb-0">My Events</h5><a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
+          <h5 class="mb-0">My Events</h5>
+          <div class="d-flex gap-2">
+            <a href="#/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
+            <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
+          </div></div>
         <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
           <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Status</th><th class="text-center">Views</th><th></th></tr></thead>
           <tbody>${rows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
@@ -88,8 +95,8 @@ const Dash = (() => {
 
   // ---------- Screen 10: Advertiser ----------
   async function advertiser() {
-    const u = UI.requireRole('advertiser', 'admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Advertiser Dashboard', '#/advertiser',
+    const u = UI.requireRole('organizer', 'admin'); if (!u) return;
+    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> My Ad Campaigns', '#/advertiser',
       UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/advertiser-summary');
@@ -98,7 +105,7 @@ const Dash = (() => {
         <td>${esc(a.title)}</td><td>${statusBadge(a.status)}</td>
         <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
         <td class="text-center"><b>${a.ctr||0}%</b></td><td>${fmtDate(a.end_date)}</td></tr>`).join('');
-      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-megaphone text-primary"></i> Advertiser Dashboard</h3>
+      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h3>
         <div class="row">
           ${kpi(d.total_campaigns,'Campaigns','kpi-blue','collection')}
           ${kpi(d.active,'Active','kpi-green','broadcast')}
@@ -121,7 +128,7 @@ const Dash = (() => {
   }
 
   async function newCampaign() {
-    const u = UI.requireRole('advertiser','admin'); if (!u) return;
+    const u = UI.requireRole('organizer','admin'); if (!u) return;
     app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
         <!-- Section 1: Campaign details -->
@@ -310,7 +317,7 @@ const Dash = (() => {
         <div class="col-auto"><label class="form-label small">Action</label>
           <select id="aAction" class="form-select form-select-sm"><option value="">All</option>
             ${['CREATE','UPDATE','DELETE','APPROVE','REJECT','LOGIN','LOGOUT','LOGIN_FAILED','EXPORT'].map(a=>`<option>${a}</option>`).join('')}</select></div>
-        <div class="col-auto"><label class="form-label small">User ID</label><input id="aUser" type="number" class="form-control form-control-sm" style="width:100px"></div>
+        <div class="col-auto"><label class="form-label small">User ID (optional)</label><input id="aUser" type="number" class="form-control form-control-sm" style="width:120px"></div>
         <div class="col-auto"><button class="btn btn-primary btn-sm">Filter</button></div>
         <div class="col-auto"><a href="/api/analytics/audit-logs/export" class="btn btn-outline-success btn-sm" id="aExport"><i class="bi bi-download"></i> Export CSV</a></div>
       </form></div>
@@ -329,7 +336,9 @@ const Dash = (() => {
     try {
       const data = await API.get('/analytics/audit-logs' + API.qs({ action, user_id, page_size: 100 }));
       document.getElementById('auditBody').innerHTML = data.items.length ? data.items.map(l => `<tr>
-        <td class="small">${fmtDateTime(l.created_at)}</td><td>${l.user_id ?? '—'}</td>
+        <td class="small">${fmtDateTime(l.created_at)}</td>
+        <td class="small"><div class="fw-semibold">${esc(l.user_name || '—')}</div>
+          <div class="text-muted">${esc(l.user_email || '')}</div></td>
         <td><span class="act-${esc(l.action)} fw-bold small">${esc(l.action)}</span></td>
         <td class="small">${esc(l.table_name||'—')}</td><td>${l.record_id ?? '—'}</td>
         <td class="small text-muted">${esc(l.ip_address||'—')}</td></tr>`).join('')

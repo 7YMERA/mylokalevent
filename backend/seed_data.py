@@ -49,10 +49,11 @@ def make_users():
         mk("Perak Outdoor Society", f"pos{DEMO_DOMAIN}", "organizer"),
         mk("Johor Community Hub", f"jch{DEMO_DOMAIN}", "organizer"),
     ]
+    # Advertiser role merged into organizer — these are organizers who run ads.
     advertisers = [
-        mk("Pancing Pro Tackle", f"ppt{DEMO_DOMAIN}", "advertiser"),
-        mk("Bahtera Boat Rentals", f"bbr{DEMO_DOMAIN}", "advertiser"),
-        mk("Umpan Segar Bait Co.", f"usb{DEMO_DOMAIN}", "advertiser"),
+        mk("Pancing Pro Tackle", f"ppt{DEMO_DOMAIN}", "organizer"),
+        mk("Bahtera Boat Rentals", f"bbr{DEMO_DOMAIN}", "organizer"),
+        mk("Umpan Segar Bait Co.", f"usb{DEMO_DOMAIN}", "organizer"),
     ]
     fishermen = [
         mk("Nelson Co-op Kuantan", f"nck{DEMO_DOMAIN}", "fisherman"),

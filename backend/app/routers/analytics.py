@@ -97,6 +97,22 @@ async def catch_trends(_: CurrentUser = Depends(admin_only)):
 
 
 # ---------------- Audit log viewer (Requirement 7) ----------------
+def _attach_users(rows: list[dict]) -> list[dict]:
+    """Attach each log's actor name + email (so the trail isn't just ID numbers)."""
+    if not rows:
+        return rows
+    ids = list({r["user_id"] for r in rows if r.get("user_id")})
+    users = {}
+    if ids:
+        for u in get_db().table("users").select("id,name,email").in_("id", ids).execute().data or []:
+            users[u["id"]] = u
+    for r in rows:
+        u = users.get(r.get("user_id"))
+        r["user_name"] = u["name"] if u else ("System" if r.get("user_id") is None else "Deleted user")
+        r["user_email"] = u["email"] if u else None
+    return rows
+
+
 @router.get("/audit-logs")
 async def audit_logs(
     user_id: int | None = None,
@@ -120,20 +136,22 @@ async def audit_logs(
     query = query.order("created_at", desc=True)
     start = (page - 1) * page_size
     res = query.range(start, start + page_size - 1).execute()
-    return {"items": res.data, "total": res.count or 0, "page": page, "page_size": page_size}
+    return {"items": _attach_users(res.data), "total": res.count or 0, "page": page, "page_size": page_size}
 
 
 @router.get("/audit-logs/export")
 async def export_audit_logs(request: Request, admin: CurrentUser = Depends(admin_only)):
     """Download the full audit trail as CSV (for compliance/reporting)."""
-    rows = get_db().table("audit_logs").select("*").order("created_at", desc=True).execute().data or []
+    rows = _attach_users(get_db().table("audit_logs").select("*").order("created_at", desc=True).execute().data or [])
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["id", "created_at", "user_id", "action", "table_name", "record_id", "ip_address", "user_agent"])
+    writer.writerow(["id", "created_at", "user_name", "user_email", "user_id", "action",
+                     "table_name", "record_id", "ip_address", "user_agent"])
     for r in rows:
-        writer.writerow([r.get("id"), r.get("created_at"), r.get("user_id"), r.get("action"),
-                         r.get("table_name"), r.get("record_id"), r.get("ip_address"), r.get("user_agent")])
+        writer.writerow([r.get("id"), r.get("created_at"), r.get("user_name"), r.get("user_email"),
+                         r.get("user_id"), r.get("action"), r.get("table_name"), r.get("record_id"),
+                         r.get("ip_address"), r.get("user_agent")])
     buf.seek(0)
 
     write_audit_log(user_id=admin.id, action="EXPORT", table_name="audit_logs",
