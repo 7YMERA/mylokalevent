@@ -32,6 +32,8 @@
       case '/advertiser/new':   return Dash.newCampaign();
       case '/fisherman':        return Dash.fisherman();
       case '/admin':            return Dash.admin();
+      case '/admin/pending-events': return Dash.pendingEvents();
+      case '/admin/pending-ads':    return Dash.pendingAds();
       case '/admin/audit':      return Dash.audit();
       case '/admin/users':      return Dash.users();
       default:
