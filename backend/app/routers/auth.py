@@ -16,6 +16,7 @@ from app.database import get_db
 from app.dependencies import CurrentUser, get_current_user
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserPublic
 from app.security import create_access_token, hash_password, verify_password
+from app.services.email_service import send_welcome
 
 router = APIRouter()
 
@@ -79,6 +80,9 @@ async def register(payload: RegisterRequest, request: Request):
         ip_address=_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
+
+    # Welcome email (best-effort; mocked/skipped if email isn't configured).
+    send_welcome(user["email"], user["name"])
 
     token = create_access_token(subject=user["id"], role=user["role"], extra={"email": user["email"]})
     return TokenResponse(
