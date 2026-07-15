@@ -30,22 +30,20 @@ services:
         sync: false                  # set to your onrender.com URL after first deploy
       - key: CORS_ORIGINS
         sync: false                  # same onrender.com URL
-      # External APIs — leave MOCK_* = true until you add real keys.
+      # Payments stay mocked (no ToyyibPay account); email + weather are live.
       - key: MOCK_PAYMENTS
         value: "true"
       - key: MOCK_EMAIL
-        value: "true"
+        value: "false"
       - key: MOCK_WEATHER
-        value: "true"
+        value: "false"
       - key: TOYYIBPAY_BASE_URL
         value: https://dev.toyyibpay.com
-      - key: TOYYIBPAY_SECRET_KEY
-        sync: false
-      - key: TOYYIBPAY_CATEGORY_CODE
-        sync: false
       - key: SENDGRID_API_KEY
-        sync: false
+        sync: false                  # paste your SG. key in the dashboard
       - key: SENDGRID_FROM_EMAIL
-        sync: false
+        value: xymeraxy@gmail.com     # your verified SendGrid sender
+      - key: SENDGRID_FROM_NAME
+        value: MyLokalEvent
       - key: OPENWEATHER_API_KEY
-        sync: false
+        sync: false                  # paste your OpenWeatherMap key
