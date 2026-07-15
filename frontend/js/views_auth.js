@@ -49,9 +49,8 @@ const Auth = (() => {
           <div class="mb-3"><label class="form-label required">I am registering as</label>
             <select id="rRole" class="form-select">
               <option value="user">General User — browse &amp; save events</option>
-              <option value="organizer">Event Organizer — post events (RM10)</option>
+              <option value="organizer">Event Organizer — post events (RM10) &amp; run ads (RM70/wk)</option>
               <option value="fisherman">Fishermen Co-op — list catches</option>
-              <option value="advertiser">Advertiser — run banner ads (RM70/wk)</option>
             </select></div>
           <button class="btn btn-primary w-100" id="rBtn">Create Account</button>
         </form>

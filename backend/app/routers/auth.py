@@ -20,7 +20,8 @@ from app.security import create_access_token, hash_password, verify_password
 router = APIRouter()
 
 # Roles a visitor may pick at registration. Admin is provisioned manually only.
-SELF_SERVICE_ROLES = {"user", "organizer", "fisherman", "advertiser"}
+# 'advertiser' merged into 'organizer' — organizers post events AND run ads.
+SELF_SERVICE_ROLES = {"user", "organizer", "fisherman"}
 
 
 def _client_ip(request: Request) -> str | None:

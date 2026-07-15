@@ -41,7 +41,7 @@ async def list_ads(
 
 
 @router.get("/mine")
-async def my_ads(user: CurrentUser = Depends(require_roles("advertiser", "admin"))):
+async def my_ads(user: CurrentUser = Depends(require_roles("organizer", "admin"))):
     res = (
         get_db().table("advertisements").select("*")
         .eq("advertiser_id", int(user.id)).order("created_at", desc=True).execute()
@@ -53,7 +53,7 @@ async def my_ads(user: CurrentUser = Depends(require_roles("advertiser", "admin"
 async def create_ad(
     payload: AdCreate,
     request: Request,
-    user: CurrentUser = Depends(require_roles("advertiser", "admin")),
+    user: CurrentUser = Depends(require_roles("organizer", "admin")),
 ):
     db = get_db()
     start = payload.start_date or date.today()

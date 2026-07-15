@@ -140,7 +140,8 @@ const UI = (() => {
         <ul class="dropdown-menu dropdown-menu-end">
           <li><a class="dropdown-item" href="#/profile"><i class="bi bi-person"></i> My Profile</a></li>
           <li><a class="dropdown-item" href="${dashByRole[user.role] || '#/'}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-          ${user.role === 'organizer' ? '<li><a class="dropdown-item" href="#/create-event"><i class="bi bi-plus-circle"></i> Post Event</a></li>' : ''}
+          ${user.role === 'organizer' ? `<li><a class="dropdown-item" href="#/create-event"><i class="bi bi-plus-circle"></i> Post Event</a></li>
+          <li><a class="dropdown-item" href="#/advertiser/new"><i class="bi bi-megaphone"></i> Create Ad</a></li>` : ''}
           <li><a class="dropdown-item" href="#/saved"><i class="bi bi-bookmark"></i> Saved Events</a></li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item text-danger" href="#" onclick="UI.doLogout(event)"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
