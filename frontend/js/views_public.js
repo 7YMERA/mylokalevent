@@ -122,22 +122,40 @@ const Public = (() => {
     if (box.innerHTML.trim()) { box.innerHTML = ''; return; }
     // populate an event dropdown (optional "joining this event" tag)
     let events = [];
-    try { events = (await API.get('/events?page_size=50')).items; } catch {}
+    try { events = (await API.get('/events?page_size=200')).items; } catch {}
+    Public._composerEvents = events;   // kept so the event list can be filtered by state
     box.innerHTML = `<div class="card card-body">
       <textarea id="pcCaption" class="form-control mb-2" rows="2" maxlength="500"
         placeholder="Share your catch or activity…"></textarea>
       <div class="mb-2">${UI.uploader('pcImg', 'posts', { size: 56, label: 'Add photo' })}</div>
       <div class="row g-2">
-        <div class="col-md-4"><select id="pcState" class="form-select form-select-sm"><option value="">Tag a state…</option>
+        <div class="col-md-4"><select id="pcState" class="form-select form-select-sm" onchange="Public.filterComposerEvents()">
+          <option value="">Tag a state…</option>
           ${STATES.map(s => `<option>${s}</option>`).join('')}</select></div>
-        <div class="col-md-4"><input id="pcDistrict" class="form-control form-control-sm" placeholder="District (optional)"></div>
-        <div class="col-md-4"><select id="pcEvent" class="form-select form-select-sm"><option value="">Joining an event…</option>
+        <div class="col-md-4"><input id="pcDistrict" class="form-control form-control-sm" placeholder="District (optional)"
+          oninput="Public.filterComposerEvents()"></div>
+        <div class="col-md-4"><select id="pcEvent" class="form-select form-select-sm">
+          <option value="">Joining an event…</option>
           ${events.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 30))}</option>`).join('')}</select></div>
       </div>
+      <div class="form-text">Pick a state to narrow the event list to that location.</div>
       <div class="mt-2 text-end">
         <button class="btn btn-sm btn-outline-secondary" onclick="Public.toggleComposer()">Cancel</button>
         <button class="btn btn-sm btn-primary" onclick="Public.submitPost()"><i class="bi bi-send"></i> Post</button>
       </div></div>`;
+  }
+
+  // Narrow the composer's "Joining an event" dropdown to the chosen state/district.
+  function filterComposerEvents() {
+    const state = document.getElementById('pcState').value;
+    const district = (document.getElementById('pcDistrict').value || '').trim().toLowerCase();
+    const sel = document.getElementById('pcEvent');
+    const list = (Public._composerEvents || []).filter(e =>
+      (!state || e.state === state) &&
+      (!district || (e.district || '').toLowerCase().includes(district)));
+    sel.innerHTML = `<option value="">${state ? `Events in ${esc(state)}…` : 'Joining an event…'}</option>` +
+      list.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 30))}</option>`).join('') +
+      (state && !list.length ? '<option value="" disabled>No events in this state yet</option>' : '');
   }
 
   async function submitPost() {
@@ -375,6 +393,7 @@ const Public = (() => {
     } catch (e) { document.getElementById('newsList').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  return { home, loadFeatured, loadAdStrip, loadFeed, toggleComposer, submitPost, likePost, deletePost,
-    events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news, _f: {} };
+  return { home, loadFeatured, loadAdStrip, loadFeed, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
+    events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news,
+    _f: {}, _composerEvents: [] };
 })();
