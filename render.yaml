@@ -27,9 +27,10 @@ services:
       - key: SUPABASE_STORAGE_BUCKET
         value: uploads
       - key: BASE_URL
-        sync: false                  # set to your onrender.com URL after first deploy
+        value: https://mylokalevent.onrender.com
       - key: CORS_ORIGINS
-        sync: false                  # same onrender.com URL
+        # Vercel frontend origin + the Render URL itself. No spaces, no trailing slashes.
+        value: https://mylokalevent.vercel.app,https://mylokalevent.onrender.com
       # Payments stay mocked (no ToyyibPay account); email + weather are live.
       - key: MOCK_PAYMENTS
         value: "true"
