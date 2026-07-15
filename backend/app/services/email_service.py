@@ -77,3 +77,23 @@ def send_ad_expiry(to_email: str, title: str) -> bool:
                       _wrap("Campaign Expired",
                             f"<p>Your campaign <b>{title}</b> has reached the end of its 7-day run. "
                             f"Renew anytime from your dashboard.</p>"))
+
+
+def send_event_submitted(to_email: str, title: str) -> bool:
+    return send_email(to_email, f"Event received: '{title}' — pending approval",
+                      _wrap("Event Submitted ⏳",
+                            f"<p>Thanks! Your event <b>{title}</b> has been received and the posting fee recorded.</p>"
+                            f"<p>It's now <b>awaiting admin approval</b>. We'll email you as soon as it's reviewed.</p>"))
+
+
+def send_post_comment(to_email: str, commenter: str, snippet: str) -> bool:
+    return send_email(to_email, f"{commenter} commented on your post",
+                      _wrap("New Comment 💬",
+                            f"<p><b>{commenter}</b> commented on your community post:</p>"
+                            f"<blockquote style='border-left:3px solid #1B6CA8;padding-left:12px;color:#555'>{snippet}</blockquote>"))
+
+
+def send_post_like(to_email: str, liker: str) -> bool:
+    return send_email(to_email, f"{liker} liked your post",
+                      _wrap("New Like ❤️",
+                            f"<p><b>{liker}</b> liked your community post. Keep sharing!</p>"))

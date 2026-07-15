@@ -5,6 +5,7 @@
 -- =============================================================================
 
 -- ---- Clean slate (dev only) -------------------------------------------------
+drop table if exists post_comments cascade;
 drop table if exists posts cascade;
 drop table if exists saved_events cascade;
 drop table if exists notifications cascade;
@@ -206,6 +207,15 @@ create table posts (
     created_at timestamptz not null default now()
 );
 
+-- ---- 14. post_comments (community feed comments) ---------------------------
+create table post_comments (
+    id         bigint generated always as identity primary key,
+    post_id    bigint not null references posts(id) on delete cascade,
+    user_id    bigint not null references users(id) on delete cascade,
+    body       text not null,
+    created_at timestamptz not null default now()
+);
+
 -- ---- Indexes for search / filtering ----------------------------------------
 create index idx_events_state     on events(state);
 create index idx_events_district  on events(district);
@@ -220,6 +230,7 @@ create index idx_audit_created    on audit_logs(created_at);
 create index idx_payments_user    on payments(user_id);
 create index idx_posts_created     on posts(created_at desc);
 create index idx_posts_event       on posts(event_id);
+create index idx_comments_post     on post_comments(post_id, created_at);
 
 -- =============================================================================
 -- SEED DATA
