@@ -28,7 +28,8 @@ const Dash = (() => {
   // ---------- Screen 7: Organizer ----------
   async function organizer() {
     const u = UI.requireRole('organizer', 'admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard', '#/organizer', spinner());
+    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard', '#/organizer',
+      UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/organizer-summary');
       const rows = d.events.map(e => `<tr>
@@ -61,7 +62,8 @@ const Dash = (() => {
   // ---------- Screen 10: Advertiser ----------
   async function advertiser() {
     const u = UI.requireRole('advertiser', 'admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Advertiser Dashboard', '#/advertiser', spinner());
+    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Advertiser Dashboard', '#/advertiser',
+      UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/advertiser-summary');
       const rows = d.campaigns.map(a => `<tr>
@@ -93,23 +95,56 @@ const Dash = (() => {
 
   async function newCampaign() {
     const u = UI.requireRole('advertiser','admin'); if (!u) return;
-    app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-7"><div class="card card-body">
+    app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
-        <div class="mb-3"><label class="form-label required">Campaign Title / Headline</label><input id="adTitle" class="form-control" required></div>
-        <div class="mb-3"><label class="form-label">Banner Image URL (1200×300 recommended)</label><input id="adImg" class="form-control" placeholder="https://..."></div>
-        <div class="mb-3"><label class="form-label">Target URL</label><input id="adUrl" class="form-control" placeholder="https://yourshop.com"></div>
-        <div class="mb-3"><label class="form-label">Start Date</label><input id="adStart" type="date" class="form-control"></div>
-        <div class="alert alert-info"><i class="bi bi-info-circle"></i> RM70 for a 7-day run. Admin approval required before it goes live. (Demo mode auto-pays.)</div>
+        <!-- Section 1: Campaign details -->
+        <div class="card card-body mb-3">
+          <h6 class="fw-bold mb-3"><i class="bi bi-card-text text-primary"></i> Campaign Details</h6>
+          <div class="mb-3"><label class="form-label required">Title / Headline</label>
+            <input id="adTitle" class="form-control" maxlength="200" required placeholder="e.g. 20% off all fishing rods this week"></div>
+          <div class="mb-3"><label class="form-label">Description</label>
+            <textarea id="adDesc" class="form-control" rows="3" maxlength="500"
+              placeholder="Describe your offer, product, or service…"></textarea></div>
+          <div class="mb-1"><label class="form-label">Target URL (where the banner links to)</label>
+            <input id="adUrl" class="form-control" placeholder="https://yourshop.com"></div>
+        </div>
+
+        <!-- Section 2: Banner artwork -->
+        <div class="card card-body mb-3">
+          <h6 class="fw-bold mb-3"><i class="bi bi-image text-primary"></i> Banner Artwork</h6>
+          <p class="small text-muted">Recommended 1200×300px. Upload from your device.</p>
+          ${UI.uploader('adImg', 'ads', { size: 90, label: 'Upload banner' })}
+        </div>
+
+        <!-- Section 3: Schedule & contact -->
+        <div class="card card-body mb-3">
+          <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week text-primary"></i> Schedule &amp; Contact</h6>
+          <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Start Date</label>
+              <input id="adStart" type="date" class="form-control"></div>
+            <div class="col-md-4 mb-3"><label class="form-label">Contact Email</label>
+              <input id="adEmail" type="email" class="form-control" placeholder="you@shop.com"></div>
+            <div class="col-md-4 mb-3"><label class="form-label">Contact Phone</label>
+              <input id="adPhone" class="form-control" placeholder="01x-xxxxxxx"></div>
+          </div>
+          <div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> RM70 for a 7-day run. Admin approval required before it goes live. (Demo mode auto-pays.)</div>
+        </div>
+
         <button class="btn btn-success" id="adBtn"><i class="bi bi-credit-card"></i> Create &amp; Pay RM70</button>
-      </form></div></div>`);
+      </form></div>`);
   }
   async function submitAd(e) {
     e.preventDefault();
     const btn = document.getElementById('adBtn'); btn.disabled = true; btn.textContent='Processing…';
     try {
       const res = await API.post('/advertisements', {
-        title: document.getElementById('adTitle').value, image_url: document.getElementById('adImg').value || null,
-        target_url: document.getElementById('adUrl').value || null, start_date: document.getElementById('adStart').value || null });
+        title: document.getElementById('adTitle').value,
+        description: document.getElementById('adDesc').value || null,
+        image_url: document.getElementById('adImg').value || null,
+        target_url: document.getElementById('adUrl').value || null,
+        start_date: document.getElementById('adStart').value || null,
+        contact_email: document.getElementById('adEmail').value || null,
+        contact_phone: document.getElementById('adPhone').value || null });
       if (res.payment && res.payment.payment_url) { window.location.href = res.payment.payment_url; return; }
       UI.toast('Campaign created & paid! Awaiting admin approval.','success'); location.hash = '#/advertiser';
     } catch (err) { UI.toast(err.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-credit-card"></i> Create & Pay RM70'; }
@@ -118,7 +153,8 @@ const Dash = (() => {
   // ---------- Fisherman ----------
   async function fisherman() {
     const u = UI.requireRole('fisherman','admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-fish text-primary"></i> Fishermen Co-op Dashboard','#/fisherman', spinner());
+    app().innerHTML = shell('<i class="bi bi-fish text-primary"></i> Fishermen Co-op Dashboard','#/fisherman',
+      UI.skeletonKpis(3) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/fisherman-summary');
       const rows = d.catches.map(c => `<tr><td>${esc(c.species)}</td><td>${c.weight_kg} kg</td><td>${money(c.price_per_kg)}/kg</td>
@@ -135,7 +171,7 @@ const Dash = (() => {
               <div class="col"><input id="fcPrice" type="number" step="0.1" class="form-control form-control-sm mb-2" placeholder="RM/kg" required></div></div>
             <input id="fcLoc" class="form-control form-control-sm mb-2" placeholder="Location / port">
             <input id="fcDate" type="date" class="form-control form-control-sm mb-2">
-            <input id="fcImg" class="form-control form-control-sm mb-2" placeholder="Photo URL (optional)">
+            <div class="mb-2">${UI.uploader('fcImg', 'catches', { size: 56, label: 'Add photo' })}</div>
             <button class="btn btn-primary btn-sm w-100">Post Catch</button>
           </form></div></div>
           <div class="col-lg-7"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
@@ -159,20 +195,31 @@ const Dash = (() => {
   // ---------- Screen 5: Admin dashboard ----------
   async function admin() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard','#/admin', spinner());
+    // Show a realistic loading buffer (skeleton) while data streams in.
+    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard', '#/admin',
+      UI.skeletonKpis(4) + `<div class="row">
+        <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
+        <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
+        <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
+      </div>${UI.skeleton(180, '100%')}`);
     try {
-      const [d, byState, byCat, revenue, pending] = await Promise.all([
+      const [d, byState, byCat, revenue, pending, pendingAds] = await Promise.all([
         API.get('/analytics/dashboard'), API.get('/analytics/events-by-state'),
         API.get('/analytics/events-by-category'), API.get('/analytics/revenue-monthly'),
-        API.get('/admin/events/pending') ]);
+        API.get('/admin/events/pending'), API.get('/admin/advertisements/pending') ]);
       const pendRows = pending.map(e => `<tr><td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
         <td>${esc(e.district)}, ${esc(e.state)}</td><td>${fmtDate(e.start_date)}</td>
-        <td><button class="btn btn-sm btn-success" onclick="Dash.approve(${e.id})"><i class="bi bi-check-lg"></i> Approve</button>
+        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approve(${e.id})"><i class="bi bi-check-lg"></i> Approve</button>
             <button class="btn btn-sm btn-outline-danger" onclick="Dash.reject(${e.id})">Reject</button></td></tr>`).join('');
+      const adRows = pendingAds.map(a => `<tr>
+        <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="70" class="rounded">` : '<span class="text-muted">—</span>'}</td>
+        <td>${esc(a.title)}<div class="small text-muted">${esc((a.description || '').slice(0, 60))}</div></td>
+        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approveAd(${a.id})"><i class="bi bi-check-lg"></i> Approve</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="Dash.rejectAd(${a.id})">Reject</button></td></tr>`).join('');
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'Total Events','kpi-blue','calendar-event')}
-          ${kpi(d.pending_approvals,'Pending','kpi-orange','hourglass-split')}
+          ${kpi(d.pending_approvals,'Pending Events','kpi-orange','hourglass-split')}
           ${kpi(money(d.total_revenue),'Revenue','kpi-green','cash-stack')}
           ${kpi(d.active_ads,'Active Ads','kpi-purple','megaphone')}
         </div>
@@ -181,10 +228,20 @@ const Dash = (() => {
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Monthly Revenue</h6><canvas id="cRev" height="220"></canvas></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by Category</h6><canvas id="cCat" height="220"></canvas></div></div>
         </div>
-        <h5 class="mt-2 mb-2">Pending Approvals <span class="badge bg-warning">${pending.length}</span></h5>
-        <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-          <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Action</th></tr></thead>
-          <tbody>${pendRows || `<tr><td colspan="4">${empty('No events awaiting approval. 🎉','check2-circle')}</td></tr>`}</tbody></table></div></div>`;
+        <div class="row">
+          <div class="col-lg-7 mb-3">
+            <h5 class="mb-2"><i class="bi bi-calendar-check"></i> Pending Events <span class="badge bg-warning">${pending.length}</span></h5>
+            <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Action</th></tr></thead>
+              <tbody>${pendRows || `<tr><td colspan="4">${empty('No events awaiting approval. 🎉','check2-circle')}</td></tr>`}</tbody></table></div></div>
+          </div>
+          <div class="col-lg-5 mb-3">
+            <h5 class="mb-2"><i class="bi bi-megaphone"></i> Pending Ads <span class="badge bg-warning">${pendingAds.length}</span></h5>
+            <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Banner</th><th>Campaign</th><th>Action</th></tr></thead>
+              <tbody>${adRows || `<tr><td colspan="3">${empty('No ads awaiting approval.','megaphone')}</td></tr>`}</tbody></table></div></div>
+          </div>
+        </div>`;
       clearCharts();
       charts.push(new Chart(document.getElementById('cState'), { type:'bar',
         data:{ labels: byState.map(x=>x.label), datasets:[{data:byState.map(x=>x.value), backgroundColor:'#1B6CA8'}]},
@@ -198,6 +255,8 @@ const Dash = (() => {
   }
   async function approve(id){ try{ await API.post(`/admin/events/${id}/approve`); UI.toast('Event approved & published','success'); admin(); }catch(e){UI.toast(e.message,'danger');} }
   async function reject(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/events/${id}/reject`,{reason:r}); UI.toast('Event rejected','warning'); admin(); }catch(e){UI.toast(e.message,'danger');} }
+  async function approveAd(id){ try{ await API.post(`/admin/advertisements/${id}/approve`); UI.toast('Ad approved & now running','success'); admin(); }catch(e){UI.toast(e.message,'danger');} }
+  async function rejectAd(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/advertisements/${id}/reject`,{reason:r}); UI.toast('Ad rejected','warning'); admin(); }catch(e){UI.toast(e.message,'danger');} }
 
   // ---------- Screen 6: Audit log viewer ----------
   async function audit() {
@@ -245,7 +304,8 @@ const Dash = (() => {
   // ---------- Admin users ----------
   async function users() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-people text-primary"></i> User Management','#/admin/users', spinner());
+    app().innerHTML = shell('<i class="bi bi-people text-primary"></i> User Management','#/admin/users',
+      `<div class="card p-3">${UI.skeleton(300)}</div>`);
     try {
       const list = await API.get('/admin/users');
       const rows = list.map(x => `<tr><td>${x.id}</td><td>${esc(x.name)}</td><td>${esc(x.email)}</td>
@@ -265,5 +325,5 @@ const Dash = (() => {
   }
 
   return { organizer, delEvent, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
-    admin, approve, reject, audit, loadAudit, exportAudit, users, setStatus };
+    admin, approve, reject, approveAd, rejectAd, audit, loadAudit, exportAudit, users, setStatus };
 })();

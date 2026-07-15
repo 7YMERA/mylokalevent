@@ -20,9 +20,10 @@ admin_only = require_roles("admin")
 # ---------------- Pending queues ----------------
 @router.get("/events/pending")
 async def pending_events(_: CurrentUser = Depends(admin_only)):
+    # Newest first so a just-submitted event appears at the top of the queue.
     return (
         get_db().table("events").select("*").eq("status", "pending")
-        .order("created_at", desc=False).execute().data
+        .order("created_at", desc=True).execute().data
     )
 
 
@@ -30,7 +31,7 @@ async def pending_events(_: CurrentUser = Depends(admin_only)):
 async def pending_ads(_: CurrentUser = Depends(admin_only)):
     return (
         get_db().table("advertisements").select("*").eq("status", "pending")
-        .order("created_at", desc=False).execute().data
+        .order("created_at", desc=True).execute().data
     )
 
 

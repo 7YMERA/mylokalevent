@@ -26,6 +26,7 @@ from app.routers import (  # noqa: E402
     payments,
     posts,
     spots,
+    uploads,
 )
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend")
@@ -74,6 +75,7 @@ app.include_router(news.router, prefix="/api/news", tags=["news"])
 app.include_router(fish.router, prefix="/api/fish-catches", tags=["fish-catches"])
 app.include_router(spots.router, prefix="/api/spots", tags=["fishing-spots"])
 app.include_router(posts.router, prefix="/api/posts", tags=["community-feed"])
+app.include_router(uploads.router, prefix="/api/upload", tags=["upload"])
 app.include_router(payments.router, prefix="/api/payment", tags=["payments"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])

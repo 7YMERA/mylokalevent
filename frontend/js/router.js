@@ -25,6 +25,7 @@
       case '/login':            return Auth.login();
       case '/register':         return Auth.register();
       case '/create-event':     return Auth.createEvent();
+      case '/profile':          return Auth.profile();
       case '/saved':            return Auth.saved();
       case '/organizer':        return Dash.organizer();
       case '/advertiser':       return Dash.advertiser();

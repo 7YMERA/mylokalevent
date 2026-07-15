@@ -4,11 +4,49 @@ Role-specific summary endpoints power the Organizer / Advertiser / Fisherman
 dashboards. All require an authenticated user (own data only).
 """
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.dependencies import CurrentUser, get_current_user
 
 router = APIRouter()
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    phone: str | None = Field(default=None, max_length=20)
+    profile_image: str | None = None
+
+
+@router.get("/profile")
+async def my_profile(user: CurrentUser = Depends(get_current_user)):
+    res = get_db().table("users").select(
+        "id,name,email,role,status,phone,profile_image,created_at"
+    ).eq("id", int(user.id)).execute()
+    if not res.data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    return res.data[0]
+
+
+@router.put("/profile")
+async def update_profile(payload: ProfileUpdate, user: CurrentUser = Depends(get_current_user)):
+    changes = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if not changes:
+        return {"message": "Nothing to update"}
+    updated = get_db().table("users").update(changes).eq("id", int(user.id)).execute().data[0]
+    return {
+        "id": updated["id"], "name": updated["name"], "email": updated["email"],
+        "role": updated["role"], "phone": updated.get("phone"),
+        "profile_image": updated.get("profile_image"),
+    }
+
+
+@router.get("/posts")
+async def my_posts(user: CurrentUser = Depends(get_current_user)):
+    return (
+        get_db().table("posts").select("*")
+        .eq("user_id", int(user.id)).order("created_at", desc=True).execute().data
+    )
 
 
 # ---------------- Notifications ----------------
