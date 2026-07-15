@@ -4,10 +4,14 @@ const Dash = (() => {
   let charts = [];
   function clearCharts() { charts.forEach(c => c.destroy()); charts = []; }
 
-  function kpi(val, label, cls, icon) {
-    return `<div class="col-6 col-lg-3 mb-3"><div class="kpi p-3 ${cls} h-100">
+  // Inner KPI card (no column wrapper) — lets it be wrapped in a link.
+  function kpiInner(val, label, cls, icon) {
+    return `<div class="kpi p-3 ${cls} h-100">
       <div class="d-flex justify-content-between"><div><div class="kpi-val">${val}</div><div class="small">${label}</div></div>
-      <i class="bi bi-${icon}" style="font-size:1.8rem;opacity:.5"></i></div></div></div>`;
+      <i class="bi bi-${icon}" style="font-size:1.8rem;opacity:.5"></i></div></div>`;
+  }
+  function kpi(val, label, cls, icon) {
+    return `<div class="col-6 col-lg-3 mb-3">${kpiInner(val, label, cls, icon)}</div>`;
   }
   const shell = (title, sidebarActive, body) => {
     const u = API.getUser();
@@ -15,15 +19,38 @@ const Dash = (() => {
       organizer: [['#/organizer','Dashboard','speedometer2'],['#/create-event','Post Event','plus-circle']],
       advertiser: [['#/advertiser','Dashboard','speedometer2'],['#/advertiser/new','New Campaign','plus-circle']],
       fisherman: [['#/fisherman','Dashboard','speedometer2']],
-      admin: [['#/admin','Dashboard','speedometer2'],['#/admin/audit','Audit Logs','shield-check'],['#/admin/users','Users','people']],
+      // 4th item (optional) = id for a live count badge
+      admin: [['#/admin','Dashboard','speedometer2'],
+              ['#/admin/pending-events','Pending Events','calendar-check','badgePendEvents'],
+              ['#/admin/pending-ads','Pending Ads','megaphone','badgePendAds'],
+              ['#/admin/audit','Audit Logs','shield-check'],
+              ['#/admin/users','Users','people']],
     }[u.role] || [];
     return `<div class="container-fluid py-4"><div class="row">
       <aside class="col-lg-2 mb-3 dash-sidebar">
-        <div class="list-group">${links.map(([h,t,i]) =>
-          `<a href="${h}" class="list-group-item list-group-item-action border-0 nav-link ${h===sidebarActive?'active':''}"><i class="bi bi-${i}"></i> ${t}</a>`).join('')}</div>
+        <div class="list-group">${links.map(([h,t,i,badge]) =>
+          `<a href="${h}" class="list-group-item list-group-item-action border-0 nav-link d-flex align-items-center ${h===sidebarActive?'active':''}">
+            <i class="bi bi-${i} me-2"></i> ${t}
+            ${badge ? `<span id="${badge}" class="badge bg-danger rounded-pill ms-auto d-none"></span>` : ''}</a>`).join('')}</div>
       </aside>
       <div class="col-lg-10"><h3 class="mb-3">${title}</h3>${body}</div></div></div>`;
   };
+
+  // Fetch pending counts and light up the sidebar badges (admin only).
+  function setBadge(id, n) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (n > 0) { el.textContent = n; el.classList.remove('d-none'); }
+    else el.classList.add('d-none');
+  }
+  async function loadAdminBadges() {
+    try {
+      const [ev, ads] = await Promise.all([
+        API.get('/admin/events/pending'), API.get('/admin/advertisements/pending')]);
+      setBadge('badgePendEvents', ev.length);
+      setBadge('badgePendAds', ads.length);
+    } catch {}
+  }
 
   // ---------- Screen 7: Organizer ----------
   async function organizer() {
@@ -202,24 +229,15 @@ const Dash = (() => {
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
       </div>${UI.skeleton(180, '100%')}`);
+    loadAdminBadges();
     try {
-      const [d, byState, byCat, revenue, pending, pendingAds] = await Promise.all([
+      const [d, byState, byCat, revenue] = await Promise.all([
         API.get('/analytics/dashboard'), API.get('/analytics/events-by-state'),
-        API.get('/analytics/events-by-category'), API.get('/analytics/revenue-monthly'),
-        API.get('/admin/events/pending'), API.get('/admin/advertisements/pending') ]);
-      const pendRows = pending.map(e => `<tr><td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
-        <td>${esc(e.district)}, ${esc(e.state)}</td><td>${fmtDate(e.start_date)}</td>
-        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approve(${e.id})"><i class="bi bi-check-lg"></i> Approve</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="Dash.reject(${e.id})">Reject</button></td></tr>`).join('');
-      const adRows = pendingAds.map(a => `<tr>
-        <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="70" class="rounded">` : '<span class="text-muted">—</span>'}</td>
-        <td>${esc(a.title)}<div class="small text-muted">${esc((a.description || '').slice(0, 60))}</div></td>
-        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approveAd(${a.id})"><i class="bi bi-check-lg"></i> Approve</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="Dash.rejectAd(${a.id})">Reject</button></td></tr>`).join('');
+        API.get('/analytics/events-by-category'), API.get('/analytics/revenue-monthly') ]);
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'Total Events','kpi-blue','calendar-event')}
-          ${kpi(d.pending_approvals,'Pending Events','kpi-orange','hourglass-split')}
+          <a href="#/admin/pending-events" class="col-6 col-lg-3 mb-3 text-decoration-none">${kpiInner(d.pending_approvals,'Pending Events','kpi-orange','hourglass-split')}</a>
           ${kpi(money(d.total_revenue),'Revenue','kpi-green','cash-stack')}
           ${kpi(d.active_ads,'Active Ads','kpi-purple','megaphone')}
         </div>
@@ -227,20 +245,6 @@ const Dash = (() => {
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by State</h6><canvas id="cState" height="220"></canvas></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Monthly Revenue</h6><canvas id="cRev" height="220"></canvas></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by Category</h6><canvas id="cCat" height="220"></canvas></div></div>
-        </div>
-        <div class="row">
-          <div class="col-lg-7 mb-3">
-            <h5 class="mb-2"><i class="bi bi-calendar-check"></i> Pending Events <span class="badge bg-warning">${pending.length}</span></h5>
-            <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-              <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Action</th></tr></thead>
-              <tbody>${pendRows || `<tr><td colspan="4">${empty('No events awaiting approval. 🎉','check2-circle')}</td></tr>`}</tbody></table></div></div>
-          </div>
-          <div class="col-lg-5 mb-3">
-            <h5 class="mb-2"><i class="bi bi-megaphone"></i> Pending Ads <span class="badge bg-warning">${pendingAds.length}</span></h5>
-            <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-              <thead class="table-light"><tr><th>Banner</th><th>Campaign</th><th>Action</th></tr></thead>
-              <tbody>${adRows || `<tr><td colspan="3">${empty('No ads awaiting approval.','megaphone')}</td></tr>`}</tbody></table></div></div>
-          </div>
         </div>`;
       clearCharts();
       charts.push(new Chart(document.getElementById('cState'), { type:'bar',
@@ -253,10 +257,50 @@ const Dash = (() => {
         data:{ labels: byCat.map(x=>x.label), datasets:[{data:byCat.map(x=>x.value), backgroundColor:['#1B6CA8','#2E75B6','#28A745','#FD7E14','#845ef7','#DC3545']}]}}));
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
-  async function approve(id){ try{ await API.post(`/admin/events/${id}/approve`); UI.toast('Event approved & published','success'); admin(); }catch(e){UI.toast(e.message,'danger');} }
-  async function reject(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/events/${id}/reject`,{reason:r}); UI.toast('Event rejected','warning'); admin(); }catch(e){UI.toast(e.message,'danger');} }
-  async function approveAd(id){ try{ await API.post(`/admin/advertisements/${id}/approve`); UI.toast('Ad approved & now running','success'); admin(); }catch(e){UI.toast(e.message,'danger');} }
-  async function rejectAd(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/advertisements/${id}/reject`,{reason:r}); UI.toast('Ad rejected','warning'); admin(); }catch(e){UI.toast(e.message,'danger');} }
+  async function approve(id){ try{ await API.post(`/admin/events/${id}/approve`); UI.toast('Event approved & published','success'); pendingEvents(); }catch(e){UI.toast(e.message,'danger');} }
+  async function reject(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/events/${id}/reject`,{reason:r}); UI.toast('Event rejected','warning'); pendingEvents(); }catch(e){UI.toast(e.message,'danger');} }
+  async function approveAd(id){ try{ await API.post(`/admin/advertisements/${id}/approve`); UI.toast('Ad approved & now running','success'); pendingAds(); }catch(e){UI.toast(e.message,'danger');} }
+  async function rejectAd(id){ const r = prompt('Reason for rejection:'); if(!r)return; try{ await API.post(`/admin/advertisements/${id}/reject`,{reason:r}); UI.toast('Ad rejected','warning'); pendingAds(); }catch(e){UI.toast(e.message,'danger');} }
+
+  // ---------- Pending Events (sidebar page) ----------
+  async function pendingEvents() {
+    const u = UI.requireRole('admin'); if (!u) return;
+    app().innerHTML = shell('<i class="bi bi-calendar-check text-primary"></i> Pending Events', '#/admin/pending-events',
+      `<div class="card p-3">${UI.skeleton(300)}</div>`);
+    loadAdminBadges();
+    try {
+      const pending = await API.get('/admin/events/pending');
+      const rows = pending.map(e => `<tr><td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
+        <td>${esc(e.district)}, ${esc(e.state)}</td><td>${fmtDate(e.start_date)}</td>
+        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approve(${e.id})"><i class="bi bi-check-lg"></i> Approve</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="Dash.reject(${e.id})">Reject</button></td></tr>`).join('');
+      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-calendar-check text-primary"></i> Pending Events <span class="badge bg-warning">${pending.length}</span></h3>
+        <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+          <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Action</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="4">${empty('No events awaiting approval. 🎉','check2-circle')}</td></tr>`}</tbody></table></div></div>`;
+    } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
+  }
+
+  // ---------- Pending Ads (sidebar page) ----------
+  async function pendingAds() {
+    const u = UI.requireRole('admin'); if (!u) return;
+    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Pending Ads', '#/admin/pending-ads',
+      `<div class="card p-3">${UI.skeleton(300)}</div>`);
+    loadAdminBadges();
+    try {
+      const ads = await API.get('/admin/advertisements/pending');
+      const rows = ads.map(a => `<tr>
+        <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="90" class="rounded">` : '<span class="text-muted">—</span>'}</td>
+        <td>${esc(a.title)}<div class="small text-muted">${esc((a.description || '').slice(0, 80))}</div></td>
+        <td class="small">${esc(a.contact_email || '')}${a.contact_phone ? '<br>' + esc(a.contact_phone) : ''}</td>
+        <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approveAd(${a.id})"><i class="bi bi-check-lg"></i> Approve</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="Dash.rejectAd(${a.id})">Reject</button></td></tr>`).join('');
+      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-megaphone text-primary"></i> Pending Ads <span class="badge bg-warning">${ads.length}</span></h3>
+        <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+          <thead class="table-light"><tr><th>Banner</th><th>Campaign</th><th>Contact</th><th>Action</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="4">${empty('No ads awaiting approval.','megaphone')}</td></tr>`}</tbody></table></div></div>`;
+    } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
+  }
 
   // ---------- Screen 6: Audit log viewer ----------
   async function audit() {
@@ -275,6 +319,7 @@ const Dash = (() => {
         <tbody id="auditBody">${spinner()}</tbody></table></div></div>`);
     // Export needs auth header — fetch as blob
     document.getElementById('aExport').onclick = Dash.exportAudit;
+    loadAdminBadges();
     loadAudit();
   }
   async function loadAudit(e) {
@@ -306,6 +351,7 @@ const Dash = (() => {
     const u = UI.requireRole('admin'); if (!u) return;
     app().innerHTML = shell('<i class="bi bi-people text-primary"></i> User Management','#/admin/users',
       `<div class="card p-3">${UI.skeleton(300)}</div>`);
+    loadAdminBadges();
     try {
       const list = await API.get('/admin/users');
       const rows = list.map(x => `<tr><td>${x.id}</td><td>${esc(x.name)}</td><td>${esc(x.email)}</td>
@@ -325,5 +371,6 @@ const Dash = (() => {
   }
 
   return { organizer, delEvent, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
-    admin, approve, reject, approveAd, rejectAd, audit, loadAudit, exportAudit, users, setStatus };
+    admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
+    audit, loadAudit, exportAudit, users, setStatus };
 })();
