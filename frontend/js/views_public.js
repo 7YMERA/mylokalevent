@@ -78,6 +78,10 @@ const Public = (() => {
 
   function feedCard(p) {
     const initial = (p.author_name || '?').trim().charAt(0).toUpperCase();
+    const authorAvatar = p.author_image
+      ? `<img src="${esc(p.author_image)}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover">`
+      : `<div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
+             style="width:40px;height:40px;background:var(--secondary)">${initial}</div>`;
     const locTag = p.state
       ? `<a href="#/events?state=${encodeURIComponent(p.state)}" class="badge bg-light text-primary border text-decoration-none me-1">
            <i class="bi bi-geo-alt"></i> ${esc(p.district ? p.district + ', ' : '')}${esc(p.state)}</a>` : '';
@@ -89,8 +93,7 @@ const Public = (() => {
     return `<div class="col-md-6 col-lg-4 mb-4"><div class="card card-hover h-100">
       <div class="card-body pb-2">
         <div class="d-flex align-items-center mb-2">
-          <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
-               style="width:40px;height:40px;background:var(--secondary)">${initial}</div>
+          ${authorAvatar}
           <div class="ms-2">
             <div class="fw-bold" style="line-height:1">${esc(p.author_name)}</div>
             <small class="text-muted">${esc(p.author_role)} · ${timeAgo(p.created_at)}</small>

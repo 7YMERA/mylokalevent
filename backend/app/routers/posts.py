@@ -25,7 +25,7 @@ def _enrich(posts: list[dict]) -> list[dict]:
 
     users = {}
     if user_ids:
-        for u in db.table("users").select("id,name,role").in_("id", user_ids).execute().data or []:
+        for u in db.table("users").select("id,name,role,profile_image").in_("id", user_ids).execute().data or []:
             users[u["id"]] = u
     events = {}
     if event_ids:
@@ -36,6 +36,7 @@ def _enrich(posts: list[dict]) -> list[dict]:
         author = users.get(p["user_id"], {})
         p["author_name"] = author.get("name", "Member")
         p["author_role"] = author.get("role", "user")
+        p["author_image"] = author.get("profile_image")
         p["event_title"] = events.get(p.get("event_id"))
     return posts
 
