@@ -45,7 +45,7 @@ async def list_events(
     date_to: datetime | None = None,
     sort: str = Query("newest", description="newest | popular | upcoming"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(12, ge=1, le=50),
+    page_size: int = Query(12, ge=1, le=200),
     viewer: CurrentUser | None = Depends(get_current_user_optional),
 ):
     db = get_db()
