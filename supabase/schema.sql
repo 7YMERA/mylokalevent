@@ -238,9 +238,10 @@ insert into categories (name, kind) values
 -- Default admin account.
 -- Password below is the bcrypt hash of:  Admin@123
 -- CHANGE THIS after first login.
-insert into users (name, email, password, role, status) values
+insert into users (name, email, password, role, status, profile_image) values
     ('Platform Admin', 'admin@mylokalevent.my',
-     '$2b$12$OhDb/u8Zqu4EA/h1hs7kL.NGUU50MnyybbvWgVhJzOnxJjJQilDTC', 'admin', 'active');
+     '$2b$12$OhDb/u8Zqu4EA/h1hs7kL.NGUU50MnyybbvWgVhJzOnxJjJQilDTC', 'admin', 'active',
+     'https://ui-avatars.com/api/?name=Platform+Admin&background=1B6CA8&color=fff&size=150&bold=true');
 
 -- Sample fishing spots (kolam pancing) with plain Google Maps links.
 insert into fishing_spots (name, description, state, district, maps_url) values

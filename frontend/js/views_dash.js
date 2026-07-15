@@ -30,13 +30,13 @@ const Dash = (() => {
               ['#/admin/users','Users','people']],
     }[u.role] || [];
     return `<div class="container-fluid py-4"><div class="row">
-      <aside class="col-lg-2 mb-3 dash-sidebar">
+      <aside class="col-md-4 col-lg-2 mb-3 dash-sidebar">
         <div class="list-group">${links.map(([h,t,i,badge]) =>
           `<a href="${h}" class="list-group-item list-group-item-action border-0 nav-link d-flex align-items-center ${h===sidebarActive?'active':''}">
             <i class="bi bi-${i} me-2"></i> ${t}
             ${badge ? `<span id="${badge}" class="badge bg-danger rounded-pill ms-auto d-none"></span>` : ''}</a>`).join('')}</div>
       </aside>
-      <div class="col-lg-10"><h3 class="mb-3">${title}</h3>${body}</div></div></div>`;
+      <div class="col-md-8 col-lg-10"><h3 class="mb-3">${title}</h3>${body}</div></div></div>`;
   };
 
   // Fetch pending counts and light up the sidebar badges (admin only).

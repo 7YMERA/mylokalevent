@@ -35,11 +35,17 @@ def clear_previous_demo():
     db.table("fishing_spots").delete().like("name", "[demo]%").execute()
 
 
+def _avatar(name: str) -> str:
+    """A clean, on-brand initials avatar so every profile has a picture."""
+    from urllib.parse import quote
+    return f"https://ui-avatars.com/api/?name={quote(name)}&background=1B6CA8&color=fff&size=150&bold=true"
+
+
 def make_users():
     def mk(name, email, role):
         return db.table("users").insert({
             "name": name, "email": email, "password": hash_password(DEMO_PW),
-            "role": role, "status": "active",
+            "role": role, "status": "active", "profile_image": _avatar(name),
         }).execute().data[0]["id"]
 
     organizers = [
