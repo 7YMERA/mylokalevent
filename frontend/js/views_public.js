@@ -211,7 +211,8 @@ const Public = (() => {
     if (box.innerHTML.trim()) { box.innerHTML = ''; return; }
     // populate an event dropdown (optional "joining this event" tag)
     let events = [];
-    try { events = (await API.get('/events?page_size=200')).items; } catch {}
+    try { events = (await API.get('/events?page_size=200')).items; }
+    catch (e) { console.error('composer: failed to load events', e); UI.toast('Could not load events for tagging', 'warning'); }
     Public._composerEvents = events;   // kept so the event list can be filtered by state
     box.innerHTML = `<div class="card card-body">
       <textarea id="pcCaption" class="form-control mb-2" rows="2" maxlength="500"
