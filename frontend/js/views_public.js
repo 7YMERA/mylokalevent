@@ -126,12 +126,12 @@ const Public = (() => {
     box.innerHTML = `<div class="card card-body">
       <textarea id="pcCaption" class="form-control mb-2" rows="2" maxlength="500"
         placeholder="Share your catch or activity…"></textarea>
+      <div class="mb-2">${UI.uploader('pcImg', 'posts', { size: 56, label: 'Add photo' })}</div>
       <div class="row g-2">
-        <div class="col-md-4"><input id="pcImg" class="form-control form-control-sm" placeholder="Image URL (optional)"></div>
-        <div class="col-md-3"><select id="pcState" class="form-select form-select-sm"><option value="">Tag a state…</option>
+        <div class="col-md-4"><select id="pcState" class="form-select form-select-sm"><option value="">Tag a state…</option>
           ${STATES.map(s => `<option>${s}</option>`).join('')}</select></div>
-        <div class="col-md-3"><input id="pcDistrict" class="form-control form-select-sm form-control-sm" placeholder="District (optional)"></div>
-        <div class="col-md-2"><select id="pcEvent" class="form-select form-select-sm"><option value="">Event…</option>
+        <div class="col-md-4"><input id="pcDistrict" class="form-control form-control-sm" placeholder="District (optional)"></div>
+        <div class="col-md-4"><select id="pcEvent" class="form-select form-select-sm"><option value="">Joining an event…</option>
           ${events.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 30))}</option>`).join('')}</select></div>
       </div>
       <div class="mt-2 text-end">

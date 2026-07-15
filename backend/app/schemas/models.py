@@ -7,13 +7,17 @@ from pydantic import BaseModel, Field
 # ---- Advertisements ----
 class AdCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
     image_url: str | None = None
     target_url: str | None = None
     start_date: date | None = None
+    contact_email: str | None = Field(default=None, max_length=150)
+    contact_phone: str | None = Field(default=None, max_length=30)
 
 
 class AdUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=3, max_length=200)
+    description: str | None = None
     image_url: str | None = None
     target_url: str | None = None
 

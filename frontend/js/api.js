@@ -49,6 +49,21 @@ const API = (() => {
   const put = (p, b) => request('PUT', p, b);
   const del = (p) => request('DELETE', p);
 
+  // Multipart image upload -> { url, path }
+  async function upload(file, folder = 'misc') {
+    const fd = new FormData();
+    fd.append('file', file);
+    const headers = {};
+    const token = getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(url(`/upload?folder=${encodeURIComponent(folder)}`), {
+      method: 'POST', headers, body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Upload failed (${res.status})`);
+    return data;
+  }
+
   // --- auth ---
   async function login(email, password) {
     const data = await post('/auth/login', { email, password });
@@ -65,6 +80,13 @@ const API = (() => {
     clearSession();
   }
 
+  // Re-fetch the current user and refresh the cached copy (after profile edits).
+  async function syncUser() {
+    const u = await get('/auth/me');
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+    return u;
+  }
+
   // query string helper
   const qs = (obj) => {
     const p = new URLSearchParams();
@@ -73,5 +95,5 @@ const API = (() => {
     return s ? `?${s}` : '';
   };
 
-  return { get, post, put, del, login, register, logout, getUser, getToken, isAuthed, clearSession, qs, base, url };
+  return { get, post, put, del, upload, login, register, logout, syncUser, getUser, getToken, isAuthed, clearSession, qs, base, url };
 })();
