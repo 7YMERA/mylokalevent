@@ -34,8 +34,8 @@ const Public = (() => {
           <h1 class="display-5">Discover Local Events &amp; Fresh Catches</h1>
           <p class="lead mb-4">Fishing competitions, coastal markets &amp; community gatherings across Malaysia.</p>
           <div class="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="#/events" class="btn btn-light btn-lg text-primary fw-bold"><i class="bi bi-search"></i> Search &amp; Filter Events</a>
-            <a href="#/catches" class="btn btn-outline-light btn-lg"><i class="bi bi-fish"></i> Catch of the Day</a>
+            <a href="/events" class="btn btn-light btn-lg text-primary fw-bold"><i class="bi bi-search"></i> Search &amp; Filter Events</a>
+            <a href="/catches" class="btn btn-outline-light btn-lg"><i class="bi bi-fish"></i> Catch of the Day</a>
           </div>
         </div>
       </section>
@@ -44,7 +44,7 @@ const Public = (() => {
         <!-- Featured events -->
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 class="mb-0"><i class="bi bi-stars text-primary"></i> Featured Events</h4>
-          <a href="#/events" class="btn btn-sm btn-outline-primary">View all &amp; filter <i class="bi bi-arrow-right"></i></a>
+          <a href="/events" class="btn btn-sm btn-outline-primary">View all &amp; filter <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="row" id="featured">${spinner()}</div>
 
@@ -56,7 +56,7 @@ const Public = (() => {
           <h4 class="mb-0"><i class="bi bi-people text-primary"></i> Community Feed</h4>
           ${user
             ? `<button class="btn btn-sm btn-primary" onclick="Public.toggleComposer()"><i class="bi bi-plus-circle"></i> Share a post</button>`
-            : `<a href="#/login" class="btn btn-sm btn-outline-primary">Log in to share</a>`}
+            : `<a href="/login" class="btn btn-sm btn-outline-primary">Log in to share</a>`}
         </div>
         <p class="text-muted small mb-3">What anglers are sharing — catches, activities, and events they're joining.</p>
         <div id="composer" class="mb-3"></div>
@@ -162,10 +162,10 @@ const Public = (() => {
       : `<div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold"
              style="width:40px;height:40px;background:var(--secondary)">${initial}</div>`;
     const locTag = p.state
-      ? `<a href="#/events?state=${encodeURIComponent(p.state)}" class="badge bg-light text-primary border text-decoration-none me-1">
+      ? `<a href="/events?state=${encodeURIComponent(p.state)}" class="badge bg-light text-primary border text-decoration-none me-1">
            <i class="bi bi-geo-alt"></i> ${esc(p.district ? p.district + ', ' : '')}${esc(p.state)}</a>` : '';
     const evTag = (p.event_id && p.event_title)
-      ? `<a href="#/events/${p.event_id}" class="badge bg-primary text-decoration-none">
+      ? `<a href="/events/${p.event_id}" class="badge bg-primary text-decoration-none">
            <i class="bi bi-calendar-event"></i> ${esc(p.event_title)}</a>` : '';
     const user = API.getUser();
     const canDelete = user && (user.role === 'admin' || user.id === p.user_id);
@@ -224,7 +224,7 @@ const Public = (() => {
                onkeydown="if(event.key==='Enter')Public.submitComment(${postId})">
              <button class="btn btn-primary" onclick="Public.submitComment(${postId})"><i class="bi bi-send"></i></button>
            </div>`
-        : '<a href="#/login" class="small">Log in to comment</a>';
+        : '<a href="/login" class="small">Log in to comment</a>';
       box.innerHTML = `<hr class="my-2"><div>${list}</div>${composer}`;
       if (btn) btn.classList.replace('btn-outline-primary', 'btn-primary');
     } catch (e) { box.innerHTML = `<div class="text-danger small">${esc(e.message)}</div>`; }
@@ -455,7 +455,7 @@ const Public = (() => {
         ? `<a href="${esc(ev.location_url)}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-geo-alt-fill"></i> Get Directions</a>`
         : '';
       app().innerHTML = `<div class="container py-4">
-        <a href="#/events" class="text-muted small"><i class="bi bi-arrow-left"></i> Back to events</a>
+        <a href="/events" class="text-muted small"><i class="bi bi-arrow-left"></i> Back to events</a>
         ${ev.banner_url ? `<img src="${esc(ev.banner_url)}" class="w-100 rounded my-3" style="max-height:320px;object-fit:cover">`
           : `<div class="bg-white rounded my-3 d-flex align-items-center justify-content-center text-primary" style="height:200px"><i class="bi bi-calendar-event" style="font-size:3rem"></i></div>`}
         <div class="row">
@@ -509,7 +509,7 @@ const Public = (() => {
   }
 
   async function saveEvent(id) {
-    if (!API.isAuthed()) { UI.toast('Please log in to save events', 'warning'); location.hash = '#/login'; return; }
+    if (!API.isAuthed()) { UI.toast('Please log in to save events', 'warning'); navigate('/login'); return; }
     try { await API.post(`/events/${id}/save`); UI.toast('Saved to your bookmarks', 'success'); }
     catch (e) { UI.toast(e.message, 'danger'); }
   }

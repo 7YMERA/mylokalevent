@@ -16,7 +16,7 @@ const Auth = (() => {
           <button class="btn btn-primary w-100" id="liBtn">Log In</button>
         </form>
         <div class="d-flex justify-content-between align-items-center mt-3 small">
-          <span>No account? <a href="#/register">Register</a></span>
+          <span>No account? <a href="/register">Register</a></span>
           <div class="dropdown">
             <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle p-0" type="button" data-bs-toggle="dropdown">
               <i class="bi bi-people"></i> Demo accounts
@@ -49,8 +49,8 @@ const Auth = (() => {
     try {
       const user = await API.login(document.getElementById('liEmail').value, document.getElementById('liPass').value);
       UI.renderNavbar(); UI.toast(`Welcome, ${user.name}!`, 'success');
-      const dest = { organizer: '#/organizer', advertiser: '#/advertiser', fisherman: '#/fisherman', admin: '#/admin' }[user.role] || '#/';
-      location.hash = dest;
+      const dest = { organizer: '/organizer', advertiser: '/advertiser', fisherman: '/fisherman', admin: '/admin' }[user.role] || '/';
+      navigate(dest);
     } catch (err) { UI.toast(err.message, 'danger'); btn.disabled = false; btn.textContent = 'Log In'; }
   }
 
@@ -77,7 +77,7 @@ const Auth = (() => {
             </select></div>
           <button class="btn btn-primary w-100" id="rBtn">Create Account</button>
         </form>
-        <p class="text-center small mt-3 mb-0">Already have an account? <a href="#/login">Log in</a></p>
+        <p class="text-center small mt-3 mb-0">Already have an account? <a href="/login">Log in</a></p>
       </div></div></div></div></div>`;
   }
   async function submitRegister(e) {
@@ -90,8 +90,8 @@ const Auth = (() => {
         role: document.getElementById('rRole').value,
       });
       UI.renderNavbar(); UI.toast('Account created!', 'success');
-      const dest = { organizer: '#/organizer', advertiser: '#/advertiser', fisherman: '#/fisherman' }[user.role] || '#/';
-      location.hash = dest;
+      const dest = { organizer: '/organizer', advertiser: '/advertiser', fisherman: '/fisherman' }[user.role] || '/';
+      navigate(dest);
     } catch (err) { UI.toast(err.message, 'danger'); btn.disabled = false; btn.textContent = 'Create Account'; }
   }
 
@@ -179,13 +179,13 @@ const Auth = (() => {
       if (res.payment && res.payment.payment_url) { window.location.href = res.payment.payment_url; return; }
       if (payWith === 'credits') { await API.syncUser(); UI.renderNavbar(); }
       UI.toast('Event submitted & fee paid! Awaiting admin approval.', 'success');
-      location.hash = '#/organizer';
+      navigate('/organizer');
     } catch (err) { UI.toast(err.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-credit-card"></i> Submit & Pay RM10'; }
   }
 
   // ---------- Saved events ----------
   async function saved() {
-    if (!API.isAuthed()) { location.hash = '#/login'; return; }
+    if (!API.isAuthed()) { navigate('/login'); return; }
     app().innerHTML = `<div class="container py-4"><h3 class="mb-3"><i class="bi bi-bookmark-heart text-primary"></i> Saved Events</h3>
       <div class="row" id="savedGrid">${spinner()}</div></div>`;
     try {
@@ -196,7 +196,7 @@ const Auth = (() => {
 
   // ---------- Profile page (all roles) ----------
   async function profile() {
-    if (!API.isAuthed()) { location.hash = '#/login'; return; }
+    if (!API.isAuthed()) { navigate('/login'); return; }
     app().innerHTML = `<div class="container py-4">${spinner()}</div>`;
     let me;
     try { me = await API.get('/me/profile'); }
@@ -293,7 +293,7 @@ const Auth = (() => {
 
   // ---------- Credit Wallet ----------
   async function wallet() {
-    if (!API.isAuthed()) { location.hash = '#/login'; return; }
+    if (!API.isAuthed()) { navigate('/login'); return; }
     app().innerHTML = `<div class="container py-4">${spinner()}</div>`;
     let w;
     try { w = await API.get('/me/wallet'); }

@@ -195,7 +195,7 @@ async def click_ad(ad_id: int):
     db.table("advertisements").update({"clicks": (ad.get("clicks") or 0) + 1}).eq("id", ad_id).execute()
 
     if ad.get("event_id"):
-        dest = f"{settings.public_frontend}/#/events/{ad['event_id']}"
+        dest = f"{settings.public_frontend}/events/{ad['event_id']}"
     elif ad.get("target_url"):
         dest = ad["target_url"]
     else:

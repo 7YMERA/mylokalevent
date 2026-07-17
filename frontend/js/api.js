@@ -33,7 +33,7 @@ const API = (() => {
     const res = await fetch(url(path), { method, headers, body: payload });
     if (res.status === 401) {
       clearSession();
-      if (!location.hash.startsWith('#/login')) location.hash = '#/login';
+      if (location.pathname !== '/login') navigate('/login');
     }
     const text = await res.text();
     let data; try { data = text ? JSON.parse(text) : null; } catch { data = text; }

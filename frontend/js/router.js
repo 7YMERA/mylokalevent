@@ -1,16 +1,23 @@
-/* Hash router — maps #/path?query to a view function. */
-(() => {
-  function parseHash() {
-    const raw = location.hash.slice(1) || '/';        // e.g. "/events?state=Perak"
-    const [path, queryStr] = raw.split('?');
-    const params = {};
-    new URLSearchParams(queryStr || '').forEach((v, k) => (params[k] = v));
-    return { path, params };
-  }
+/* History-API router — real /path URLs (no #hash). */
 
+// Global navigation helper: push a new URL and render it.
+function navigate(to) {
+  if (!to) return;
+  const url = new URL(to, location.origin);
+  const target = url.pathname + url.search;
+  if (target !== location.pathname + location.search) {
+    history.pushState({}, '', target);
+  }
+  route();
+}
+window.navigate = navigate;
+
+(() => {
   function route() {
     window.scrollTo(0, 0);
-    const { path, params } = parseHash();
+    const path = location.pathname || '/';
+    const params = {};
+    new URLSearchParams(location.search).forEach((v, k) => (params[k] = v));
     const seg = path.split('/').filter(Boolean);      // ["events","123"]
 
     // event detail: /events/:id
@@ -40,12 +47,25 @@
       case '/admin/users':      return Dash.users();
       default:
         UI.app().innerHTML = `<div class="container py-5">${UI.empty('Page not found.', 'compass')}
-          <div class="text-center"><a href="#/" class="btn btn-primary">Go Home</a></div></div>`;
+          <div class="text-center"><a href="/" class="btn btn-primary">Go Home</a></div></div>`;
     }
   }
+  window.route = route;
 
-  window.addEventListener('hashchange', route);
+  // Intercept clicks on internal links so they navigate without a full reload.
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a');
+    if (!a) return;
+    const href = a.getAttribute('href');
+    // Only handle internal SPA paths (start with "/", not "//"), same-tab, non-API.
+    if (!href || !href.startsWith('/') || href.startsWith('//')) return;
+    if (a.target === '_blank' || a.hasAttribute('download') || href.startsWith('/api/')) return;
+    e.preventDefault();
+    navigate(href);
+  });
+
+  window.addEventListener('popstate', route);
   window.addEventListener('DOMContentLoaded', () => { UI.renderNavbar(); route(); });
-  // In case scripts load after DOMContentLoaded already fired:
   if (document.readyState !== 'loading') { UI.renderNavbar(); route(); }
 })();
