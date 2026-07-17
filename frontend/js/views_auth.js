@@ -28,7 +28,7 @@ const Auth = (() => {
               <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('tac@demo.mylokalevent.my','Pass@123');return false">
                 <b>Organizer 1</b><br><span class="text-muted">Terengganu Angling Club</span></a></li>
               <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('ppt@demo.mylokalevent.my','Pass@123');return false">
-                <b>Organizer 2</b> <span class="badge bg-success">active ad</span><br><span class="text-muted">Pancing Pro Tackle</span></a></li>
+                <b>Organizer 2</b><br><span class="text-muted">Pancing Pro Tackle</span></a></li>
               <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('nck@demo.mylokalevent.my','Pass@123');return false">
                 <b>Fishermen Co-op</b><br><span class="text-muted">Nelson Co-op Kuantan</span></a></li>
             </ul>

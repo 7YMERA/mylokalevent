@@ -104,7 +104,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - **Welcome email** on registration (SendGrid)
 - **User profiles** (`/profile`): view/edit name & phone, **upload profile picture**, tabs for "My Posts" and "Saved / Joined Events"
 - **Profile pictures** for every user (avatar shown in navbar, feed, comments)
-- One-click **demo-account login dropdown** on the login page (Admin, Organizer 1, Organizer 2 [has active ad], Fishermen Co-op)
+- One-click **demo-account login dropdown** on the login page (Admin, Organizer 1, Organizer 2, Fishermen Co-op)
 
 ### 5.2 Events (core business entity)
 - **Full CRUD** for events (create, read, update, delete)
@@ -276,7 +276,7 @@ Main tables:
 |---|---|---|
 | Admin | admin@mylokalevent.my | Admin@123 |
 | Organizer 1 | tac@demo.mylokalevent.my | Pass@123 |
-| Organizer 2 (has active ad) | ppt@demo.mylokalevent.my | Pass@123 |
+| Organizer 2 | ppt@demo.mylokalevent.my | Pass@123 |
 | Fishermen Co-op | nck@demo.mylokalevent.my | Pass@123 |
 
 - Demo organizers start with **RM300 credits**.
