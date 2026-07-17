@@ -126,7 +126,7 @@ const Dash = (() => {
 
       const adRows = ad.campaigns.map(a => `<tr>
         <td>${a.image_url?`<img src="${esc(a.image_url)}" width="56" class="rounded">`:'<span class="text-muted">—</span>'}</td>
-        <td>${esc(a.title)}<div class="small text-muted text-capitalize">${esc(a.placement||'featured')}${a.auto_renew?' · auto-renew':''}</div></td>
+        <td>${esc(a.title)}<div class="small text-muted"><span class="text-capitalize">${esc(a.placement||'featured')}</span>${a.auto_renew?' · auto-renew':''}${a.event_title?' · → '+esc(a.event_title):''}</div></td>
         <td>${statusBadge(a.status)}</td>
         <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
         <td class="text-center"><b>${a.ctr||0}%</b></td>
@@ -230,18 +230,25 @@ const Dash = (() => {
     let prices = { side: 40, featured: 70, sponsored: 90, top: 130 };
     try { prices = (await API.get('/advertisements/pricing')).placements; } catch {}
     Dash._adPrices = prices;
+    let myEvents = [];
+    try { myEvents = (await API.get('/me/organizer-summary')).events || []; } catch {}
     const opts = ['top', 'sponsored', 'featured', 'side']
       .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
+    const eventOpts = myEvents.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 45))} (${esc(e.status)})</option>`).join('');
     app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
         <div class="card card-body mb-3">
           <h6 class="fw-bold mb-3"><i class="bi bi-card-text text-primary"></i> Campaign Details</h6>
           <div class="mb-3"><label class="form-label required">Title / Headline</label>
-            <input id="adTitle" class="form-control" maxlength="200" required placeholder="e.g. 20% off all fishing rods this week"></div>
+            <input id="adTitle" class="form-control" maxlength="200" required placeholder="e.g. Join Kejohanan Memancing Kuantan 2026!"></div>
           <div class="mb-3"><label class="form-label">Description</label>
-            <textarea id="adDesc" class="form-control" rows="3" maxlength="500" placeholder="Describe your offer…"></textarea></div>
-          <div class="mb-1"><label class="form-label">Target URL</label>
-            <input id="adUrl" class="form-control" placeholder="https://yourshop.com"></div>
+            <textarea id="adDesc" class="form-control" rows="3" maxlength="500" placeholder="Describe your event…"></textarea></div>
+          <div class="mb-3"><label class="form-label"><i class="bi bi-megaphone"></i> Promote which event?</label>
+            <select id="adEvent" class="form-select">
+              <option value="">— none (use external link below) —</option>${eventOpts}</select>
+            <div class="form-text">Clicking this ad takes visitors straight to the event's page.</div></div>
+          <div class="mb-1"><label class="form-label">Or external link (optional)</label>
+            <input id="adUrl" class="form-control" placeholder="https://yourshop.com — used only if no event selected"></div>
         </div>
 
         <div class="card card-body mb-3">
@@ -301,6 +308,7 @@ const Dash = (() => {
         title: document.getElementById('adTitle').value,
         description: document.getElementById('adDesc').value || null,
         image_url: document.getElementById('adImg').value || null,
+        event_id: +document.getElementById('adEvent').value || null,
         target_url: document.getElementById('adUrl').value || null,
         placement: document.getElementById('adPlacement').value,
         contact_email: document.getElementById('adEmail').value || null,

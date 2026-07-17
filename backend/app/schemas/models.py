@@ -9,7 +9,8 @@ class AdCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str | None = Field(default=None, max_length=500)
     image_url: str | None = None
-    target_url: str | None = None
+    event_id: int | None = None          # event this ad promotes (click -> event page)
+    target_url: str | None = None        # optional external link (used if no event_id)
     contact_email: str | None = Field(default=None, max_length=150)
     contact_phone: str | None = Field(default=None, max_length=30)
     placement: str = "featured"          # top | side | featured | sponsored

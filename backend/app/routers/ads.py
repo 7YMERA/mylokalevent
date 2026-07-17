@@ -30,6 +30,18 @@ def ad_fee(placement: str) -> float:
     return PLACEMENT_PRICES.get(placement, PLACEMENT_PRICES[DEFAULT_PLACEMENT])
 
 
+def _attach_event_titles(ads: list[dict]) -> list[dict]:
+    """Attach the promoted event's title to each ad (for display)."""
+    ids = list({a["event_id"] for a in ads if a.get("event_id")})
+    titles = {}
+    if ids:
+        for e in get_db().table("events").select("id,title").in_("id", ids).execute().data or []:
+            titles[e["id"]] = e["title"]
+    for a in ads:
+        a["event_title"] = titles.get(a.get("event_id"))
+    return ads
+
+
 @router.get("/pricing")
 async def ad_pricing():
     """Public: placement -> price (for the ad form to show live pricing)."""
@@ -53,7 +65,7 @@ async def list_ads(
     start = (page - 1) * page_size
     res = query.range(start, start + page_size - 1).execute()
     total = res.count or 0
-    return {"items": res.data, "total": total, "page": page, "page_size": page_size,
+    return {"items": _attach_event_titles(res.data), "total": total, "page": page, "page_size": page_size,
             "pages": ceil(total / page_size) if page_size else 0}
 
 
@@ -170,14 +182,25 @@ async def remind_expiry(ad_id: int, user: CurrentUser = Depends(get_current_user
 
 @router.get("/{ad_id}/click")
 async def click_ad(ad_id: int):
-    """Increment click counter and redirect to the advertiser's target URL."""
+    """Increment click counter and redirect to the promoted event (Roblox-style:
+    the ad takes you to the thing it advertises). Falls back to an external
+    target URL, then the site homepage."""
+    from app.config import settings
+
     db = get_db()
     res = db.table("advertisements").select("*").eq("id", ad_id).execute()
     if not res.data:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Ad not found")
     ad = res.data[0]
     db.table("advertisements").update({"clicks": (ad.get("clicks") or 0) + 1}).eq("id", ad_id).execute()
-    return RedirectResponse(ad.get("target_url") or "/")
+
+    if ad.get("event_id"):
+        dest = f"{settings.frontend_url}/#/events/{ad['event_id']}"
+    elif ad.get("target_url"):
+        dest = ad["target_url"]
+    else:
+        dest = settings.frontend_url or "/"
+    return RedirectResponse(dest)
 
 
 @router.post("/{ad_id}/impression")

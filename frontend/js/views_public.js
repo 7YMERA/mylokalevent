@@ -118,6 +118,9 @@ const Public = (() => {
     const img = a.image_url
       ? `<img src="${esc(a.image_url)}" class="event-thumb w-100" alt="">`
       : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-megaphone" style="font-size:2.5rem"></i></div>`;
+    const cta = a.event_title
+      ? '<i class="bi bi-calendar-event"></i> View Event'
+      : '<i class="bi bi-box-arrow-up-right"></i> Visit';
     return `<div class="col-md-6 col-lg-4 mb-4"><div class="card card-hover h-100">
       ${adLink(a, img)}
       <div class="card-body">
@@ -125,7 +128,8 @@ const Public = (() => {
           <span class="badge bg-light text-primary border text-capitalize">${esc(a.placement || 'featured')}</span></div>
         <h6>${esc(a.title)}</h6>
         <p class="small text-muted">${esc(a.description || '')}</p>
-        ${adLink(a, '<i class="bi bi-box-arrow-up-right"></i> Visit', 'btn btn-sm btn-primary')}
+        ${a.event_title ? `<p class="small mb-2"><i class="bi bi-megaphone text-primary"></i> Promoting: <b>${esc(a.event_title)}</b></p>` : ''}
+        ${adLink(a, cta, 'btn btn-sm btn-primary')}
       </div></div></div>`;
   }
   async function sponsored() {

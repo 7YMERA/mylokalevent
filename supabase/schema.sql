@@ -89,6 +89,7 @@ create table event_images (
 create table advertisements (
     id            bigint generated always as identity primary key,
     advertiser_id bigint not null references users(id) on delete cascade,
+    event_id      bigint references events(id) on delete set null,   -- promoted event
     title         varchar(200) not null,
     description   text,
     contact_email varchar(150),
