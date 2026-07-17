@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 
@@ -83,10 +82,18 @@ app.include_router(me.router, prefix="/api/me", tags=["me"])
 app.include_router(meta.router, prefix="/api", tags=["meta"])
 
 
-# --- Static frontend (local dev convenience) ---
-# In production the frontend is deployed separately to Vercel; locally FastAPI
-# also serves it at the root so `http://localhost:8123` shows the full app.
-# Mounted LAST so all /api routes above take precedence. html=True serves
-# index.html at "/" and resolves relative asset paths (css/…, js/…).
+# --- Static frontend + SPA fallback (local dev / Render fallback) ---
+# The frontend uses real /path URLs (history routing), so any unknown path must
+# serve index.html and let the client router handle it. Real files (js/css) are
+# served directly. Registered LAST so /api routes above take precedence.
 if os.path.isdir(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa(full_path: str):
+        if full_path.startswith("api/"):
+            return FileResponse(os.path.join(FRONTEND_DIR, "index.html"), status_code=404)
+        candidate = os.path.normpath(os.path.join(FRONTEND_DIR, full_path))
+        if full_path and candidate.startswith(FRONTEND_DIR) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))

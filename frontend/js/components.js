@@ -58,13 +58,13 @@ const UI = (() => {
       : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-calendar-event" style="font-size:2.5rem"></i></div>`;
     const fee = Number(ev.entry_fee) > 0 ? money(ev.entry_fee) : '<span class="text-success fw-bold">FREE</span>';
     return `<div class="col-md-4 mb-4"><div class="card card-hover h-100">
-        <a href="#/events/${ev.id}">${img}</a>
+        <a href="/events/${ev.id}">${img}</a>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <span class="badge bg-light text-primary border"><i class="bi bi-geo-alt"></i> ${esc(ev.district)}, ${esc(ev.state)}</span>
             ${statusBadge(ev.status)}
           </div>
-          <h5 class="mt-2"><a href="#/events/${ev.id}" class="text-dark">${esc(ev.title)}</a></h5>
+          <h5 class="mt-2"><a href="/events/${ev.id}" class="text-dark">${esc(ev.title)}</a></h5>
           <p class="text-muted small mb-2"><i class="bi bi-calendar3"></i> ${fmtDate(ev.start_date)}</p>
           <div class="d-flex justify-content-between align-items-center">
             <span>${fee}</span>
@@ -124,29 +124,29 @@ const UI = (() => {
     const user = API.getUser();
     if (!user) {
       nav.innerHTML = `
-        <li class="nav-item"><a class="nav-link" href="#/login">Login</a></li>
-        <li class="nav-item"><a class="btn btn-light btn-sm text-primary fw-bold ms-lg-2 mt-1" href="#/register">Register</a></li>`;
+        <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+        <li class="nav-item"><a class="btn btn-light btn-sm text-primary fw-bold ms-lg-2 mt-1" href="/register">Register</a></li>`;
       return;
     }
-    const dashByRole = { organizer: '#/organizer', advertiser: '#/advertiser', fisherman: '#/fisherman', admin: '#/admin', user: '#/saved' };
+    const dashByRole = { organizer: '/organizer', advertiser: '/advertiser', fisherman: '/fisherman', admin: '/admin', user: '/saved' };
     const avatar = user.profile_image
       ? `<img src="${esc(user.profile_image)}" class="rounded-circle" style="width:26px;height:26px;object-fit:cover">`
       : '<i class="bi bi-person-circle"></i>';
     const bal = Number(user.credits || 0);
     nav.innerHTML = `
-      <li class="nav-item"><a class="nav-link" href="#/wallet" title="Credit balance">
+      <li class="nav-item"><a class="nav-link" href="/wallet" title="Credit balance">
         <span class="badge bg-light text-primary"><i class="bi bi-wallet2"></i> RM${bal.toFixed(2)}</span></a></li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" data-bs-toggle="dropdown">
           ${avatar} ${esc(user.name)} <span class="badge bg-light text-primary">${esc(user.role)}</span>
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
-          <li><a class="dropdown-item" href="#/profile"><i class="bi bi-person"></i> My Profile</a></li>
-          <li><a class="dropdown-item" href="#/wallet"><i class="bi bi-wallet2"></i> Wallet <span class="text-muted">(RM${bal.toFixed(2)})</span></a></li>
-          <li><a class="dropdown-item" href="${dashByRole[user.role] || '#/'}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-          ${user.role === 'organizer' ? `<li><a class="dropdown-item" href="#/create-event"><i class="bi bi-plus-circle"></i> Post Event</a></li>
-          <li><a class="dropdown-item" href="#/advertiser/new"><i class="bi bi-megaphone"></i> Create Ad</a></li>` : ''}
-          <li><a class="dropdown-item" href="#/saved"><i class="bi bi-bookmark"></i> Saved Events</a></li>
+          <li><a class="dropdown-item" href="/profile"><i class="bi bi-person"></i> My Profile</a></li>
+          <li><a class="dropdown-item" href="/wallet"><i class="bi bi-wallet2"></i> Wallet <span class="text-muted">(RM${bal.toFixed(2)})</span></a></li>
+          <li><a class="dropdown-item" href="${dashByRole[user.role] || '/'}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+          ${user.role === 'organizer' ? `<li><a class="dropdown-item" href="/create-event"><i class="bi bi-plus-circle"></i> Post Event</a></li>
+          <li><a class="dropdown-item" href="/advertiser/new"><i class="bi bi-megaphone"></i> Create Ad</a></li>` : ''}
+          <li><a class="dropdown-item" href="/saved"><i class="bi bi-bookmark"></i> Saved Events</a></li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item text-danger" href="#" onclick="UI.doLogout(event)"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
         </ul>
@@ -158,13 +158,13 @@ const UI = (() => {
     await API.logout();
     renderNavbar();
     toast('Logged out');
-    location.hash = '#/';
+    navigate('/');
   }
 
   // Guard: redirect to login if not authed / wrong role. Returns the user or null.
   function requireRole(...roles) {
     const user = API.getUser();
-    if (!user) { location.hash = '#/login'; return null; }
+    if (!user) { navigate('/login'); return null; }
     if (roles.length && !roles.includes(user.role)) {
       app().innerHTML = `<div class="container py-5">${empty('You do not have access to this page.', 'lock')}</div>`;
       return null;

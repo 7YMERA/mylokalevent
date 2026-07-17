@@ -16,17 +16,17 @@ const Dash = (() => {
   const shell = (title, sidebarActive, body) => {
     const u = API.getUser();
     const links = {
-      organizer: [['#/organizer','Dashboard','speedometer2'],
-                  ['#/create-event','Post Event','plus-circle'],
-                  ['#/advertiser/new','Create Ad','megaphone']],
-      advertiser: [['#/advertiser','Dashboard','speedometer2'],['#/advertiser/new','New Campaign','plus-circle']],
-      fisherman: [['#/fisherman','Dashboard','speedometer2']],
+      organizer: [['/organizer','Dashboard','speedometer2'],
+                  ['/create-event','Post Event','plus-circle'],
+                  ['/advertiser/new','Create Ad','megaphone']],
+      advertiser: [['/advertiser','Dashboard','speedometer2'],['/advertiser/new','New Campaign','plus-circle']],
+      fisherman: [['/fisherman','Dashboard','speedometer2']],
       // 4th item (optional) = id for a live count badge
-      admin: [['#/admin','Dashboard','speedometer2'],
-              ['#/admin/pending-events','Pending Events','calendar-check','badgePendEvents'],
-              ['#/admin/pending-ads','Pending Ads','megaphone','badgePendAds'],
-              ['#/admin/audit','Audit Logs','shield-check'],
-              ['#/admin/users','Users','people']],
+      admin: [['/admin','Dashboard','speedometer2'],
+              ['/admin/pending-events','Pending Events','calendar-check','badgePendEvents'],
+              ['/admin/pending-ads','Pending Ads','megaphone','badgePendAds'],
+              ['/admin/audit','Audit Logs','shield-check'],
+              ['/admin/users','Users','people']],
     }[u.role] || [];
     return `<div class="container-fluid py-4"><div class="row">
       <aside class="col-md-4 col-lg-2 mb-3 dash-sidebar">
@@ -63,17 +63,17 @@ const Dash = (() => {
       ${av}
       <h6 class="mb-0">${esc(me.name)}</h6>
       <div class="mb-2"><span class="badge bg-light text-primary border text-capitalize">${esc(me.role)}</span></div>
-      <a href="#/profile" class="btn btn-sm btn-outline-primary"><i class="bi bi-person"></i> View Profile</a>
+      <a href="/profile" class="btn btn-sm btn-outline-primary"><i class="bi bi-person"></i> View Profile</a>
     </div>`;
   }
   function quickActions() {
     return `<div class="card card-body mb-3">
       <h6 class="fw-bold small text-muted mb-2"><i class="bi bi-lightning-charge"></i> QUICK ACTIONS</h6>
       <div class="d-grid gap-2">
-        <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
-        <a href="#/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
-        <a href="#/saved" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bookmark"></i> Saved Events</a>
-        <a href="#/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-globe"></i> View Public Site</a>
+        <a href="/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
+        <a href="/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
+        <a href="/saved" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bookmark"></i> Saved Events</a>
+        <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-globe"></i> View Public Site</a>
       </div></div>`;
   }
   async function loadOrgNotifications() {
@@ -118,7 +118,7 @@ const Dash = (() => {
         API.get('/me/organizer-summary'), API.get('/me/advertiser-summary')]);
 
       const eventRows = d.events.map(e => `<tr>
-        <td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
+        <td><a href="/events/${e.id}">${esc(e.title)}</a></td>
         <td>${esc(e.district)}, ${esc(e.state)}</td>
         <td>${fmtDate(e.start_date)}</td><td>${statusBadge(e.status)}</td>
         <td class="text-center">${e.view_count||0}</td>
@@ -145,7 +145,7 @@ const Dash = (() => {
         <!-- Events -->
         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
           <h5 class="mb-0"><i class="bi bi-calendar-event text-primary"></i> My Events</h5>
-          <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
+          <a href="/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
         <div class="card mb-4"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
           <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Status</th><th class="text-center">Views</th><th></th></tr></thead>
           <tbody>${eventRows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
@@ -154,7 +154,7 @@ const Dash = (() => {
         <!-- Ad campaigns -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h5>
-          <a href="#/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div>
+          <a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div>
         <div class="row">
           <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
             <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th></th></tr></thead>
@@ -188,7 +188,7 @@ const Dash = (() => {
   // ---------- Screen 10: Advertiser ----------
   async function advertiser() {
     const u = UI.requireRole('organizer', 'admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> My Ad Campaigns', '#/advertiser',
+    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> My Ad Campaigns', '/advertiser',
       UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/advertiser-summary');
@@ -205,7 +205,7 @@ const Dash = (() => {
           ${kpi(d.total_clicks,'Clicks','kpi-orange','hand-index')}
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-          <h5 class="mb-0">My Campaigns</h5><a href="#/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> New Campaign</a></div>
+          <h5 class="mb-0">My Campaigns</h5><a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> New Campaign</a></div>
         <div class="row"><div class="col-lg-7"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
           <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th>Ends</th></tr></thead>
           <tbody>${rows || `<tr><td colspan="7">${empty('No campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
@@ -235,7 +235,7 @@ const Dash = (() => {
     const opts = ['top', 'sponsored', 'featured', 'side']
       .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
     const eventOpts = myEvents.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 45))} (${esc(e.status)})</option>`).join('');
-    app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-8">
+    app().innerHTML = shell('New Campaign','/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
         <div class="card card-body mb-3">
           <h6 class="fw-bold mb-3"><i class="bi bi-card-text text-primary"></i> Campaign Details</h6>
@@ -316,14 +316,14 @@ const Dash = (() => {
         auto_renew: document.getElementById('adAutoRenew').checked });
       if (res.payment && res.payment.payment_url) { window.location.href = res.payment.payment_url; return; }
       if (payWith === 'credits') { await API.syncUser(); UI.renderNavbar(); }
-      UI.toast('Campaign created! Awaiting admin approval.','success'); location.hash = '#/organizer';
+      UI.toast('Campaign created! Awaiting admin approval.','success'); navigate('/organizer');
     } catch (err) { UI.toast(err.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-credit-card"></i> Create & Pay'; }
   }
 
   // ---------- Fisherman ----------
   async function fisherman() {
     const u = UI.requireRole('fisherman','admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-fish text-primary"></i> Fishermen Co-op Dashboard','#/fisherman',
+    app().innerHTML = shell('<i class="bi bi-fish text-primary"></i> Fishermen Co-op Dashboard','/fisherman',
       UI.skeletonKpis(3) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/fisherman-summary');
@@ -366,7 +366,7 @@ const Dash = (() => {
   async function admin() {
     const u = UI.requireRole('admin'); if (!u) return;
     // Show a realistic loading buffer (skeleton) while data streams in.
-    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard', '#/admin',
+    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard', '/admin',
       UI.skeletonKpis(4) + `<div class="row">
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
@@ -380,7 +380,7 @@ const Dash = (() => {
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'Total Events','kpi-blue','calendar-event')}
-          <a href="#/admin/pending-events" class="col-6 col-lg-3 mb-3 text-decoration-none">${kpiInner(d.pending_approvals,'Pending Events','kpi-orange','hourglass-split')}</a>
+          <a href="/admin/pending-events" class="col-6 col-lg-3 mb-3 text-decoration-none">${kpiInner(d.pending_approvals,'Pending Events','kpi-orange','hourglass-split')}</a>
           ${kpi(money(d.total_revenue),'Revenue','kpi-green','cash-stack')}
           ${kpi(d.active_ads,'Active Ads','kpi-purple','megaphone')}
         </div>
@@ -408,12 +408,12 @@ const Dash = (() => {
   // ---------- Pending Events (sidebar page) ----------
   async function pendingEvents() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-calendar-check text-primary"></i> Pending Events', '#/admin/pending-events',
+    app().innerHTML = shell('<i class="bi bi-calendar-check text-primary"></i> Pending Events', '/admin/pending-events',
       `<div class="card p-3">${UI.skeleton(300)}</div>`);
     loadAdminBadges();
     try {
       const pending = await API.get('/admin/events/pending');
-      const rows = pending.map(e => `<tr><td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
+      const rows = pending.map(e => `<tr><td><a href="/events/${e.id}">${esc(e.title)}</a></td>
         <td>${esc(e.district)}, ${esc(e.state)}</td><td>${fmtDate(e.start_date)}</td>
         <td class="text-nowrap"><button class="btn btn-sm btn-success" onclick="Dash.approve(${e.id})"><i class="bi bi-check-lg"></i> Approve</button>
             <button class="btn btn-sm btn-outline-danger" onclick="Dash.reject(${e.id})">Reject</button></td></tr>`).join('');
@@ -427,7 +427,7 @@ const Dash = (() => {
   // ---------- Pending Ads (sidebar page) ----------
   async function pendingAds() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Pending Ads', '#/admin/pending-ads',
+    app().innerHTML = shell('<i class="bi bi-megaphone text-primary"></i> Pending Ads', '/admin/pending-ads',
       `<div class="card p-3">${UI.skeleton(300)}</div>`);
     loadAdminBadges();
     try {
@@ -448,7 +448,7 @@ const Dash = (() => {
   // ---------- Screen 6: Audit log viewer ----------
   async function audit() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-shield-check text-primary"></i> Audit Logs','#/admin/audit', `
+    app().innerHTML = shell('<i class="bi bi-shield-check text-primary"></i> Audit Logs','/admin/audit', `
       <div class="card card-body mb-3"><form class="row g-2 align-items-end" onsubmit="Dash.loadAudit(event)">
         <div class="col-auto"><label class="form-label small">Action</label>
           <select id="aAction" class="form-select form-select-sm"><option value="">All</option>
@@ -494,7 +494,7 @@ const Dash = (() => {
   // ---------- Admin users ----------
   async function users() {
     const u = UI.requireRole('admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-people text-primary"></i> User Management','#/admin/users',
+    app().innerHTML = shell('<i class="bi bi-people text-primary"></i> User Management','/admin/users',
       `<div class="card p-3">${UI.skeleton(300)}</div>`);
     loadAdminBadges();
     try {
