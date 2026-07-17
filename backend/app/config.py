@@ -29,7 +29,14 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_storage_bucket: str = "uploads"
 
-    # ToyyibPay
+    # Stripe (payments)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    payment_currency: str = "myr"
+    # Where to send users back after Stripe checkout (the public frontend).
+    frontend_url: str = "http://localhost:8000"
+
+    # ToyyibPay (legacy — kept for backwards compatibility; unused now)
     toyyibpay_base_url: str = "https://dev.toyyibpay.com"
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
