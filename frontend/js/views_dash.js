@@ -18,8 +18,7 @@ const Dash = (() => {
     const links = {
       organizer: [['#/organizer','Dashboard','speedometer2'],
                   ['#/create-event','Post Event','plus-circle'],
-                  ['#/advertiser/new','Create Ad','megaphone'],
-                  ['#/advertiser','My Campaigns','collection']],
+                  ['#/advertiser/new','Create Ad','megaphone']],
       advertiser: [['#/advertiser','Dashboard','speedometer2'],['#/advertiser/new','New Campaign','plus-circle']],
       fisherman: [['#/fisherman','Dashboard','speedometer2']],
       // 4th item (optional) = id for a live count badge
@@ -55,37 +54,69 @@ const Dash = (() => {
     } catch {}
   }
 
-  // ---------- Screen 7: Organizer ----------
+  // ---------- Screen 7: Organizer (events + ad campaigns together) ----------
   async function organizer() {
     const u = UI.requireRole('organizer', 'admin'); if (!u) return;
     app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard', '#/organizer',
-      UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
+      UI.skeletonKpis(4) + `<div class="card p-3 mt-2 mb-3">${UI.skeleton(200)}</div><div class="card p-3">${UI.skeleton(200)}</div>`);
     try {
-      const d = await API.get('/me/organizer-summary');
-      const rows = d.events.map(e => `<tr>
+      const [d, ad] = await Promise.all([
+        API.get('/me/organizer-summary'), API.get('/me/advertiser-summary')]);
+
+      const eventRows = d.events.map(e => `<tr>
         <td><a href="#/events/${e.id}">${esc(e.title)}</a></td>
         <td>${esc(e.district)}, ${esc(e.state)}</td>
         <td>${fmtDate(e.start_date)}</td><td>${statusBadge(e.status)}</td>
         <td class="text-center">${e.view_count||0}</td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delEvent(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
+
+      const adRows = ad.campaigns.map(a => `<tr>
+        <td>${a.image_url?`<img src="${esc(a.image_url)}" width="56" class="rounded">`:'<span class="text-muted">—</span>'}</td>
+        <td>${esc(a.title)}</td><td>${statusBadge(a.status)}</td>
+        <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
+        <td class="text-center"><b>${a.ctr||0}%</b></td>
+        <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
+
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'My Events','kpi-blue','calendar-event')}
-          ${kpi(d.live,'Live','kpi-green','broadcast')}
-          ${kpi(d.pending,'Pending','kpi-orange','hourglass-split')}
-          ${kpi(d.total_views,'Total Views','kpi-purple','eye')}
+          ${kpi(d.live,'Live Events','kpi-green','broadcast')}
+          ${kpi(ad.active,'Active Ads','kpi-purple','megaphone')}
+          ${kpi(d.total_views,'Total Views','kpi-orange','eye')}
         </div>
+
+        <!-- Events -->
         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-          <h5 class="mb-0">My Events</h5>
-          <div class="d-flex gap-2">
-            <a href="#/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
-            <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
-          </div></div>
-        <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+          <h5 class="mb-0"><i class="bi bi-calendar-event text-primary"></i> My Events</h5>
+          <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
+        <div class="card mb-4"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
           <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Status</th><th class="text-center">Views</th><th></th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
-        </table></div></div>`;
+          <tbody>${eventRows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
+        </table></div></div>
+
+        <!-- Ad campaigns -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h5>
+          <a href="#/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div>
+        <div class="row">
+          <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th></th></tr></thead>
+            <tbody>${adRows || `<tr><td colspan="7">${empty('No ad campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
+          <div class="col-lg-4"><div class="card card-body"><h6>Clicks by Campaign</h6><canvas id="adChart" height="200"></canvas></div></div>
+        </div>`;
+
+      clearCharts();
+      if (ad.campaigns.length) {
+        charts.push(new Chart(document.getElementById('adChart'), { type: 'bar',
+          data: { labels: ad.campaigns.map(c => c.title.slice(0,12)), datasets: [{ label:'Clicks', data: ad.campaigns.map(c=>c.clicks||0), backgroundColor:'#1B6CA8' }] },
+          options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} } }));
+      }
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
+  }
+  async function delAd(id) {
+    if (!confirm('Delete this campaign?')) return;
+    try { await API.del(`/advertisements/${id}`); UI.toast('Campaign deleted','success'); organizer(); }
+    catch (e) { UI.toast(e.message,'danger'); }
   }
   async function delEvent(id) {
     if (!confirm('Delete this event?')) return;
@@ -379,7 +410,7 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
-  return { organizer, delEvent, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
+  return { organizer, delEvent, delAd, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
     admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
     audit, loadAudit, exportAudit, users, setStatus };
 })();
