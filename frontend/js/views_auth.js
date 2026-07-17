@@ -15,10 +15,33 @@ const Auth = (() => {
             <input id="liPass" type="password" class="form-control" required></div>
           <button class="btn btn-primary w-100" id="liBtn">Log In</button>
         </form>
-        <p class="text-center small mt-3 mb-0">No account? <a href="#/register">Register</a></p>
-        <div class="alert alert-light border mt-3 small mb-0">
-          <b>Demo admin:</b> admin@mylokalevent.my / Admin@123</div>
+        <div class="d-flex justify-content-between align-items-center mt-3 small">
+          <span>No account? <a href="#/register">Register</a></span>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-link text-muted text-decoration-none dropdown-toggle p-0" type="button" data-bs-toggle="dropdown">
+              <i class="bi bi-people"></i> Demo accounts
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end small">
+              <li><h6 class="dropdown-header">Click to log in</h6></li>
+              <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('admin@mylokalevent.my','Admin@123');return false">
+                <b>Admin</b><br><span class="text-muted">Platform Admin</span></a></li>
+              <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('tac@demo.mylokalevent.my','Pass@123');return false">
+                <b>Organizer</b><br><span class="text-muted">Terengganu Angling Club</span></a></li>
+              <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('ppt@demo.mylokalevent.my','Pass@123');return false">
+                <b>Organizer + Ads</b><br><span class="text-muted">Pancing Pro Tackle</span></a></li>
+              <li><a class="dropdown-item" href="#" onclick="Auth.fillLogin('nck@demo.mylokalevent.my','Pass@123');return false">
+                <b>Fishermen Co-op</b><br><span class="text-muted">Nelson Co-op Kuantan</span></a></li>
+            </ul>
+          </div>
+        </div>
       </div></div></div></div></div>`;
+  }
+  // Fill the login form with a demo account and submit it (one-click demo login).
+  function fillLogin(email, pass) {
+    document.getElementById('liEmail').value = email;
+    document.getElementById('liPass').value = pass;
+    const form = document.querySelector('#app form');
+    if (form) form.requestSubmit();
   }
   async function submitLogin(e) {
     e.preventDefault();
@@ -262,6 +285,6 @@ const Auth = (() => {
     } catch (e) { document.getElementById('myEvents').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  return { login, submitLogin, register, submitRegister, createEvent, wizNav, submitEvent, saved,
+  return { login, fillLogin, submitLogin, register, submitRegister, createEvent, wizNav, submitEvent, saved,
     profile, editProfile, saveProfile, _step: 1, _me: null };
 })();
