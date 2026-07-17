@@ -54,11 +54,65 @@ const Dash = (() => {
     } catch {}
   }
 
-  // ---------- Screen 7: Organizer (events + ad campaigns together) ----------
+  // ---------- Left widget rail (replaces the nav sidebar) ----------
+  function profileCard(me) {
+    const av = me.profile_image
+      ? `<img src="${esc(me.profile_image)}" class="rounded-circle mb-2" style="width:72px;height:72px;object-fit:cover">`
+      : `<div class="rounded-circle avatar-initial mx-auto mb-2" style="width:72px;height:72px;font-size:1.6rem">${esc((me.name||'?').charAt(0).toUpperCase())}</div>`;
+    return `<div class="card card-body text-center mb-3">
+      ${av}
+      <h6 class="mb-0">${esc(me.name)}</h6>
+      <div class="mb-2"><span class="badge bg-light text-primary border text-capitalize">${esc(me.role)}</span></div>
+      <a href="#/profile" class="btn btn-sm btn-outline-primary"><i class="bi bi-person"></i> View Profile</a>
+    </div>`;
+  }
+  function quickActions() {
+    return `<div class="card card-body mb-3">
+      <h6 class="fw-bold small text-muted mb-2"><i class="bi bi-lightning-charge"></i> QUICK ACTIONS</h6>
+      <div class="d-grid gap-2">
+        <a href="#/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
+        <a href="#/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
+        <a href="#/saved" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bookmark"></i> Saved Events</a>
+        <a href="#/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-globe"></i> View Public Site</a>
+      </div></div>`;
+  }
+  async function loadOrgNotifications() {
+    const box = document.getElementById('notifWidget');
+    if (!box) return;
+    try {
+      const list = await API.get('/me/notifications');
+      const items = list.slice(0, 6).map(n => `
+        <a href="#" onclick="Dash.readNotif(${n.id});return false"
+           class="list-group-item list-group-item-action border-0 px-2 py-2 ${n.is_read ? '' : 'bg-light'}">
+          <div class="d-flex justify-content-between">
+            <span class="small fw-${n.is_read ? 'normal' : 'bold'}">${esc(n.title)}</span>
+            ${n.is_read ? '' : '<span class="badge bg-primary rounded-pill" style="font-size:.55rem">new</span>'}
+          </div>
+          <div class="small text-muted">${esc((n.body || '').slice(0, 60))}</div>
+          <div class="text-muted" style="font-size:.7rem">${fmtDate(n.created_at)}</div>
+        </a>`).join('');
+      box.innerHTML = `<div class="card-body pb-0"><h6 class="fw-bold small text-muted mb-2"><i class="bi bi-bell"></i> NOTIFICATIONS</h6></div>
+        <div class="list-group list-group-flush">${items || `<div class="px-3 pb-3 small text-muted">No notifications yet.</div>`}</div>`;
+    } catch (e) { box.innerHTML = `<div class="card-body small text-muted">Notifications unavailable.</div>`; }
+  }
+  async function readNotif(id) {
+    try { await API.post(`/me/notifications/${id}/read`); loadOrgNotifications(); } catch {}
+  }
+
+  // ---------- Screen 7: Organizer (events + ad campaigns + widget rail) ----------
   async function organizer() {
     const u = UI.requireRole('organizer', 'admin'); if (!u) return;
-    app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard', '#/organizer',
-      UI.skeletonKpis(4) + `<div class="card p-3 mt-2 mb-3">${UI.skeleton(200)}</div><div class="card p-3">${UI.skeleton(200)}</div>`);
+    const me = API.getUser();
+    app().innerHTML = `<div class="container-fluid py-4"><div class="row">
+      <aside class="col-lg-3 mb-3">
+        ${profileCard(me)}
+        ${quickActions()}
+        <div id="notifWidget" class="card">${UI.skeleton(140)}</div>
+      </aside>
+      <div class="col-lg-9" id="orgMain">
+        ${UI.skeletonKpis(4)}<div class="card p-3 mt-2 mb-3">${UI.skeleton(200)}</div><div class="card p-3">${UI.skeleton(200)}</div>
+      </div></div></div>`;
+    loadOrgNotifications();
     try {
       const [d, ad] = await Promise.all([
         API.get('/me/organizer-summary'), API.get('/me/advertiser-summary')]);
@@ -77,7 +131,7 @@ const Dash = (() => {
         <td class="text-center"><b>${a.ctr||0}%</b></td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
 
-      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
+      document.getElementById('orgMain').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'My Events','kpi-blue','calendar-event')}
           ${kpi(d.live,'Live Events','kpi-green','broadcast')}
@@ -111,7 +165,7 @@ const Dash = (() => {
           data: { labels: ad.campaigns.map(c => c.title.slice(0,12)), datasets: [{ label:'Clicks', data: ad.campaigns.map(c=>c.clicks||0), backgroundColor:'#1B6CA8' }] },
           options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} } }));
       }
-    } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
+    } catch (e) { document.getElementById('orgMain').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
   async function delAd(id) {
     if (!confirm('Delete this campaign?')) return;
@@ -410,7 +464,7 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
-  return { organizer, delEvent, delAd, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
+  return { organizer, delEvent, delAd, readNotif, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
     admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
     audit, loadAudit, exportAudit, users, setStatus };
 })();
