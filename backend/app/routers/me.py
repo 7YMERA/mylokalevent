@@ -138,13 +138,21 @@ async def organizer_summary(user: CurrentUser = Depends(get_current_user)):
 # ---------------- Advertiser summary ----------------
 @router.get("/advertiser-summary")
 async def advertiser_summary(user: CurrentUser = Depends(get_current_user)):
+    db = get_db()
     ads = (
-        get_db().table("advertisements").select("*")
+        db.table("advertisements").select("*")
         .eq("advertiser_id", int(user.id)).order("created_at", desc=True).execute().data or []
     )
+    # attach promoted event titles
+    eids = list({a["event_id"] for a in ads if a.get("event_id")})
+    titles = {}
+    if eids:
+        for e in db.table("events").select("id,title").in_("id", eids).execute().data or []:
+            titles[e["id"]] = e["title"]
     for a in ads:
         imp = a.get("impressions") or 0
         a["ctr"] = round(((a.get("clicks") or 0) / imp) * 100, 2) if imp else 0.0
+        a["event_title"] = titles.get(a.get("event_id"))
     return {
         "total_campaigns": len(ads),
         "active": sum(1 for a in ads if a["status"] == "active"),
