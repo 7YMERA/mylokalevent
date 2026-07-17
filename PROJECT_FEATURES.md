@@ -4,7 +4,7 @@
 > MyLokalEvent platform does and how it is built. Hand this to another AI chat
 > (or a teammate) to generate a report, slides, or documentation.
 > **Keep this updated whenever new features are added.**
-> _Last updated: 2026-07 (batch 8 — ads promote & redirect to their event)._
+> _Last updated: 2026-07 (batch 9 — clean URLs, no-cache headers)._
 
 ---
 
@@ -304,6 +304,7 @@ Main tables:
 - **Bootstrap-icon weather** instead of OpenWeatherMap's image CDN (which was unreliable/blocked).
 - **Credits are virtual/non-cashable** — avoids real-money withdrawal concerns while enabling a rich economy.
 - **Demo email redirect** — lets fake accounts' emails be demoed while real users get real delivery.
+- **Clean URLs (History API routing)** — real paths like `/wallet`, `/events/5` (no `#` hash); Vercel rewrites all paths to `index.html`, and `no-cache` headers on JS/CSS guarantee the latest code loads after every deploy.
 
 ---
 
