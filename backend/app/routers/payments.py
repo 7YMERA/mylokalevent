@@ -50,7 +50,7 @@ async def payment_return(session_id: str = ""):
 
     # Top-ups go back to the wallet; posting fees to the dashboard.
     is_topup = payment and payment.get("payable_type") == "topup"
-    dest = f"{settings.frontend_url}/#/{'wallet' if is_topup else 'organizer'}"
+    dest = f"{settings.public_frontend}/#/{'wallet' if is_topup else 'organizer'}"
     ok = paid
     color = "#28A745" if ok else "#DC3545"
     title = "Payment Successful" if ok else "Payment Not Completed"

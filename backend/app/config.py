@@ -61,6 +61,18 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
+    @property
+    def public_frontend(self) -> str:
+        """The public frontend base URL for redirects (ad clicks, Stripe return).
+        Uses FRONTEND_URL if set to a real host, else falls back to the first
+        non-backend CORS origin (so it works on Render without extra config)."""
+        if self.frontend_url and "localhost" not in self.frontend_url:
+            return self.frontend_url.rstrip("/")
+        for o in self.cors_origin_list:
+            if o.startswith("http") and "onrender.com" not in o and "localhost" not in o:
+                return o.rstrip("/")
+        return self.frontend_url.rstrip("/")
+
 
 @lru_cache
 def get_settings() -> Settings:
