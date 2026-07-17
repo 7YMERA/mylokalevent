@@ -10,9 +10,10 @@ class AdCreate(BaseModel):
     description: str | None = Field(default=None, max_length=500)
     image_url: str | None = None
     target_url: str | None = None
-    start_date: date | None = None
     contact_email: str | None = Field(default=None, max_length=150)
     contact_phone: str | None = Field(default=None, max_length=30)
+    placement: str = "featured"          # top | side | featured | sponsored
+    auto_renew: bool = False
 
 
 class AdUpdate(BaseModel):
@@ -20,6 +21,8 @@ class AdUpdate(BaseModel):
     description: str | None = None
     image_url: str | None = None
     target_url: str | None = None
+    placement: str | None = None
+    auto_renew: bool | None = None
 
 
 # ---- News ----

@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "no-reply@example.com"
     sendgrid_from_name: str = "MyLokalEvent"
+    # Demo: emails to fake seeded accounts (@demo.*, admin) are redirected here so
+    # they're visible during a demo. Real registered users get their own email.
+    demo_email_redirect: str = ""
 
     # OpenWeatherMap
     openweather_api_key: str = ""

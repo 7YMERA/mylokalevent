@@ -42,6 +42,7 @@ def _to_public(row: dict) -> UserPublic:
         status=row["status"],
         phone=row.get("phone"),
         profile_image=row.get("profile_image"),
+        credits=float(row.get("credits") or 0),
     )
 
 

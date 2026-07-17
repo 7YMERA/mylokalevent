@@ -24,6 +24,7 @@ class UserPublic(BaseModel):
     status: str
     phone: str | None = None
     profile_image: str | None = None
+    credits: float = 0
 
 
 class TokenResponse(BaseModel):

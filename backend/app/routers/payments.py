@@ -42,12 +42,15 @@ def _email_invoice(payment: dict) -> None:
 async def payment_return(session_id: str = ""):
     """User lands here after Stripe checkout. Verify, finalise, then bounce to the app."""
     paid = bool(session_id) and verify_session_paid(session_id)
+    payment = None
     if paid:
         payment = finalise_payment_by_session(session_id)
-        if payment and payment.get("status") == "success":
+        if payment and payment.get("status") == "success" and payment.get("payable_type") != "topup":
             _email_invoice(payment)
 
-    dest = f"{settings.frontend_url}/#/organizer"
+    # Top-ups go back to the wallet; posting fees to the dashboard.
+    is_topup = payment and payment.get("payable_type") == "topup"
+    dest = f"{settings.frontend_url}/#/{'wallet' if is_topup else 'organizer'}"
     ok = paid
     color = "#28A745" if ok else "#DC3545"
     title = "Payment Successful" if ok else "Payment Not Completed"

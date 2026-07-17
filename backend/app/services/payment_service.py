@@ -38,9 +38,26 @@ def _create_payment_row(user_id: int, payable_type: str, payable_id: int, amount
 
 
 def create_posting_payment(*, user_id: int, payable_type: str, payable_id: int,
-                          amount: float, description: str) -> dict:
+                          amount: float, description: str, pay_with: str = "card") -> dict:
     """Create a payment for an event/ad posting fee. Returns the payment row plus
-    a `payment_url` the client should redirect to (Stripe Checkout, real mode only)."""
+    a `payment_url` the client should redirect to (Stripe Checkout, real mode only).
+
+    pay_with='credits' spends the user's wallet instantly (no Stripe); the caller
+    should have already verified the balance covers `amount`.
+    """
+    if pay_with == "credits":
+        from app.services.credits_service import spend_credits
+        ok = spend_credits(user_id, amount, payable_type, description)
+        row = _create_payment_row(
+            user_id, payable_type, payable_id, amount,
+            status_="success" if ok else "failed",
+            session_id=f"CREDITS-{payable_type}-{payable_id}",
+        )
+        row["payment_url"] = None
+        row["mock"] = False
+        row["paid_with"] = "credits"
+        row["ok"] = ok
+        return row
 
     if settings.mock_payments or not settings.stripe_secret_key:
         # Offline/demo: succeed immediately so the workflow can proceed.
@@ -79,8 +96,44 @@ def create_posting_payment(*, user_id: int, payable_type: str, payable_id: int,
     return row
 
 
+def create_topup_session(*, user_id: int, amount: float) -> dict:
+    """Buy credits: RM `amount` -> `amount` credits (1 credit = RM1). Stripe Checkout."""
+    if settings.mock_payments or not settings.stripe_secret_key:
+        # Offline/demo: credit immediately.
+        from app.services.credits_service import adjust_credits
+        row = _create_payment_row(user_id, "topup", user_id, amount, status_="success",
+                                  session_id=f"MOCK-topup-{user_id}")
+        adjust_credits(user_id, amount, "topup", f"Top-up RM{amount:.2f} (demo)")
+        row["payment_url"] = None
+        row["mock"] = True
+        return row
+
+    row = _create_payment_row(user_id, "topup", user_id, amount, status_="pending")
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": settings.payment_currency,
+                "product_data": {"name": f"MyLokalEvent Credits — RM{amount:.0f}"},
+                "unit_amount": int(round(amount * 100)),
+            },
+            "quantity": 1,
+        }],
+        success_url=f"{settings.base_url}/api/payment/return?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{settings.frontend_url}/#/wallet",
+        client_reference_id=str(row["id"]),
+        metadata={"payment_id": str(row["id"]), "payable_type": "topup", "payable_id": str(user_id)},
+    )
+    get_db().table("payments").update({"transaction_id": session.id}).eq("id", row["id"]).execute()
+    row["transaction_id"] = session.id
+    row["payment_url"] = session.url
+    row["mock"] = False
+    return row
+
+
 def finalise_payment_by_session(session_id: str) -> dict | None:
-    """Mark the payment for a Stripe session as success (idempotent). Returns the row."""
+    """Mark the payment for a Stripe session as success (idempotent). Returns the row.
+    For top-ups, credits the user's wallet exactly once (on the success transition)."""
     db = get_db()
     res = db.table("payments").select("*").eq("transaction_id", session_id).execute()
     if not res.data:
@@ -89,6 +142,10 @@ def finalise_payment_by_session(session_id: str) -> dict | None:
     if payment["status"] != "success":
         db.table("payments").update({"status": "success"}).eq("id", payment["id"]).execute()
         payment["status"] = "success"
+        if payment["payable_type"] == "topup":
+            from app.services.credits_service import adjust_credits
+            adjust_credits(payment["user_id"], float(payment["amount"]),
+                           "topup", f"Top-up RM{float(payment['amount']):.2f}")
     return payment
 
 

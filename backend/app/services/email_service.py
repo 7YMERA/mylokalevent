@@ -6,12 +6,33 @@ instead of being sent, so the app runs fully offline.
 from app.config import settings
 
 
+# Fake seeded accounts that can't actually receive mail.
+_UNDELIVERABLE = ("@demo.mylokalevent.my", "admin@mylokalevent.my")
+
+
+def _resolve_recipient(to_email: str) -> tuple[str, str]:
+    """Return (actual_recipient, prefix_note). Fake demo accounts are redirected
+    to the demo inbox so emails are visible during a demo; real user emails go
+    straight through unchanged."""
+    is_demo = any(to_email.endswith(s) or to_email == s for s in _UNDELIVERABLE)
+    if is_demo and settings.demo_email_redirect:
+        note = (f'<div style="background:#fff3cd;padding:8px 12px;border-radius:6px;'
+                f'font-size:12px;color:#664d03;margin-bottom:12px">Demo redirect — '
+                f'in production this would go to <b>{to_email}</b>.</div>')
+        return settings.demo_email_redirect, note
+    return to_email, ""
+
+
 def send_email(to_email: str, subject: str, html: str) -> bool:
     """Send an email. Returns True on success. Never raises (best-effort)."""
+    recipient, note = _resolve_recipient(to_email)
+    html = note + html
+
     if settings.mock_email or not settings.sendgrid_api_key:
-        print(f"[email:mock] to={to_email} | {subject}")
+        print(f"[email:mock] to={recipient} (for {to_email}) | {subject}")
         return True
 
+    to_email = recipient
     try:
         from sendgrid import SendGridAPIClient
         from sendgrid.helpers.mail import Content, Email, Mail, To
@@ -97,3 +118,20 @@ def send_post_like(to_email: str, liker: str) -> bool:
     return send_email(to_email, f"{liker} liked your post",
                       _wrap("New Like ❤️",
                             f"<p><b>{liker}</b> liked your community post. Keep sharing!</p>"))
+
+
+def send_ad_expiring(to_email: str, title: str, days_left: int, auto_renew: bool, fee: float) -> bool:
+    msg = (f"<p>Your ad <b>{title}</b> will expire in <b>{days_left} day(s)</b>.</p>"
+           + (f"<p>Auto-renew is <b>ON</b> — we'll charge RM{fee:.0f} in credits to keep it running. "
+              f"Make sure your balance covers it.</p>" if auto_renew else
+              f"<p>Renew it from your dashboard for RM{fee:.0f} to keep it live.</p>"))
+    return send_email(to_email, f"Your ad '{title}' is expiring soon",
+                      _wrap("Ad Expiring Soon ⏰", msg))
+
+
+def send_low_credits(to_email: str, balance: float) -> bool:
+    return send_email(to_email, "Your credit balance is running low",
+                      _wrap("Low Credit Balance 🪙",
+                            f"<p>Your wallet is down to <b>RM{balance:.2f}</b>.</p>"
+                            f"<p>Top up to keep posting events and running ads without interruption "
+                            f"(auto-renewing ads will stop if credits run out).</p>"))

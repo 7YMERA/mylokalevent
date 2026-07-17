@@ -54,5 +54,7 @@ services:
         value: xymeraxy@gmail.com     # your verified SendGrid sender
       - key: SENDGRID_FROM_NAME
         value: MyLokalEvent
+      - key: DEMO_EMAIL_REDIRECT
+        value: muhammad_22001874@utp.edu.my
       - key: OPENWEATHER_API_KEY
         sync: false                  # paste your OpenWeatherMap key

@@ -131,8 +131,12 @@ const Auth = (() => {
           <h5>Step 4 — Banner &amp; Payment</h5>
           <div class="mb-3"><label class="form-label">Event banner (optional)</label>
             ${UI.uploader('eBanner', 'events', { size: 90, label: 'Upload banner' })}</div>
-          <div class="alert alert-info"><i class="bi bi-info-circle"></i> Clicking <b>Submit &amp; Pay</b> creates your event and processes the RM10 posting fee.
-            In demo mode the payment is auto-approved.</div>
+          <label class="form-label">Pay the RM10 posting fee with:</label>
+          <div class="form-check"><input class="form-check-input" type="radio" name="epay" id="epayCredits" value="credits" ${(Number((API.getUser()||{}).credits||0) >= 10) ? 'checked' : 'disabled'}>
+            <label class="form-check-label" for="epayCredits">Credits — RM10 <span class="text-muted">(balance: RM${Number((API.getUser()||{}).credits||0).toFixed(2)})</span></label></div>
+          <div class="form-check mb-3"><input class="form-check-input" type="radio" name="epay" id="epayCard" value="card" ${(Number((API.getUser()||{}).credits||0) >= 10) ? '' : 'checked'}>
+            <label class="form-check-label" for="epayCard">Card via Stripe</label></div>
+          <div class="alert alert-info"><i class="bi bi-info-circle"></i> Your event is created and reviewed by an admin before going live.</div>
         </div>
         <div class="d-flex justify-content-between mt-3">
           <button type="button" class="btn btn-outline-secondary" id="wizPrev" onclick="Auth.wizNav(-1)" disabled>Back</button>
@@ -170,8 +174,10 @@ const Auth = (() => {
         entry_fee: +document.getElementById('eFee').value || 0,
         banner_url: document.getElementById('eBanner').value || null,
       };
-      const res = await API.post('/events', payload);
+      const payWith = document.querySelector('input[name="epay"]:checked')?.value || 'card';
+      const res = await API.post('/events?pay_with=' + payWith, payload);
       if (res.payment && res.payment.payment_url) { window.location.href = res.payment.payment_url; return; }
+      if (payWith === 'credits') { await API.syncUser(); UI.renderNavbar(); }
       UI.toast('Event submitted & fee paid! Awaiting admin approval.', 'success');
       location.hash = '#/organizer';
     } catch (err) { UI.toast(err.message, 'danger'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-credit-card"></i> Submit & Pay RM10'; }
@@ -285,6 +291,74 @@ const Auth = (() => {
     } catch (e) { document.getElementById('myEvents').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
+  // ---------- Credit Wallet ----------
+  async function wallet() {
+    if (!API.isAuthed()) { location.hash = '#/login'; return; }
+    app().innerHTML = `<div class="container py-4">${spinner()}</div>`;
+    let w;
+    try { w = await API.get('/me/wallet'); }
+    catch (e) { app().innerHTML = `<div class="container py-5">${empty(e.message, 'exclamation-triangle')}</div>`; return; }
+
+    const txnRows = w.transactions.map(t => {
+      const pos = Number(t.amount) >= 0;
+      const typeLabel = { topup: 'Top-up', event: 'Event fee', advertisement: 'Ad fee', ad_renewal: 'Ad renewal' }[t.type] || t.type;
+      return `<tr>
+        <td class="small">${fmtDateTime(t.created_at)}</td>
+        <td><span class="badge bg-light text-primary border">${esc(typeLabel)}</span></td>
+        <td class="small">${esc(t.description || '')}</td>
+        <td class="text-end fw-bold ${pos ? 'text-success' : 'text-danger'}">${pos ? '+' : ''}${money(t.amount)}</td>
+        <td class="text-end small text-muted">${money(t.balance_after)}</td></tr>`;
+    }).join('');
+
+    app().innerHTML = `<div class="container py-4">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="card kpi kpi-blue p-4 mb-3">
+            <div class="small">Credit Balance</div>
+            <div class="kpi-val" style="font-size:2.6rem">${money(w.balance)}</div>
+            <div class="small mt-1">1 credit = RM1 · spend on events &amp; ads</div>
+          </div>
+          <div class="card card-body">
+            <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle text-primary"></i> Top Up</h6>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              ${[20, 50, 100, 200].map(a => `<button class="btn btn-outline-primary btn-sm" onclick="Auth.topUp(${a})">RM${a}</button>`).join('')}
+            </div>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">RM</span>
+              <input id="topupCustom" type="number" min="1" class="form-control" placeholder="custom amount">
+              <button class="btn btn-primary" onclick="Auth.topUp(+document.getElementById('topupCustom').value)">Add</button>
+            </div>
+            <div class="form-text">Paid securely via Stripe (test card 4242 4242 4242 4242).</div>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="Auth.remindLow()">
+            <i class="bi bi-bell"></i> Send low-balance alert (demo)</button>
+        </div>
+        <div class="col-lg-8">
+          <h5 class="mb-3"><i class="bi bi-clock-history text-primary"></i> Transaction History</h5>
+          <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Details</th><th class="text-end">Amount</th><th class="text-end">Balance</th></tr></thead>
+            <tbody>${txnRows || `<tr><td colspan="5">${empty('No transactions yet. Top up to get started!', 'wallet2')}</td></tr>`}</tbody>
+          </table></div></div>
+        </div>
+      </div></div>`;
+  }
+
+  async function topUp(amount) {
+    if (!amount || amount <= 0) { UI.toast('Enter a valid amount', 'warning'); return; }
+    try {
+      const res = await API.post('/me/wallet/topup', { amount });
+      if (res.payment_url) { window.location.href = res.payment_url; return; }  // Stripe
+      await API.syncUser(); UI.renderNavbar();
+      UI.toast(`Added RM${amount} in credits`, 'success');
+      wallet();
+    } catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
+  async function remindLow() {
+    try { await API.post('/me/wallet/remind-low'); UI.toast('Low-balance alert email sent', 'success'); }
+    catch (e) { UI.toast(e.message, 'danger'); }
+  }
+
   return { login, fillLogin, submitLogin, register, submitRegister, createEvent, wizNav, submitEvent, saved,
-    profile, editProfile, saveProfile, _step: 1, _me: null };
+    profile, editProfile, saveProfile, wallet, topUp, remindLow, _step: 1, _me: null };
 })();

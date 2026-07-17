@@ -126,10 +126,13 @@ const Dash = (() => {
 
       const adRows = ad.campaigns.map(a => `<tr>
         <td>${a.image_url?`<img src="${esc(a.image_url)}" width="56" class="rounded">`:'<span class="text-muted">—</span>'}</td>
-        <td>${esc(a.title)}</td><td>${statusBadge(a.status)}</td>
+        <td>${esc(a.title)}<div class="small text-muted text-capitalize">${esc(a.placement||'featured')}${a.auto_renew?' · auto-renew':''}</div></td>
+        <td>${statusBadge(a.status)}</td>
         <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
         <td class="text-center"><b>${a.ctr||0}%</b></td>
-        <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-primary" title="Send expiry reminder (demo)" onclick="Dash.remindAdExpiry(${a.id})"><i class="bi bi-bell"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
 
       document.getElementById('orgMain').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
         <div class="row">
@@ -172,6 +175,10 @@ const Dash = (() => {
     try { await API.del(`/advertisements/${id}`); UI.toast('Campaign deleted','success'); organizer(); }
     catch (e) { UI.toast(e.message,'danger'); }
   }
+  async function remindAdExpiry(id) {
+    try { await API.post(`/advertisements/${id}/remind-expiry`); UI.toast('Expiry reminder email sent','success'); }
+    catch (e) { UI.toast(e.message,'danger'); }
+  }
   async function delEvent(id) {
     if (!confirm('Delete this event?')) return;
     try { await API.del(`/events/${id}`); UI.toast('Event deleted','success'); organizer(); }
@@ -212,61 +219,97 @@ const Dash = (() => {
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
 
+  const PLACEMENT_INFO = {
+    top: 'Top banner — shows across the top of every page (most visible)',
+    sponsored: 'Sponsored page — featured on the dedicated Sponsored page',
+    featured: 'Featured card — appears in event listings & homepage',
+    side: 'Side banner — shows in the events sidebar',
+  };
   async function newCampaign() {
     const u = UI.requireRole('organizer','admin'); if (!u) return;
+    let prices = { side: 40, featured: 70, sponsored: 90, top: 130 };
+    try { prices = (await API.get('/advertisements/pricing')).placements; } catch {}
+    Dash._adPrices = prices;
+    const opts = ['top', 'sponsored', 'featured', 'side']
+      .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
     app().innerHTML = shell('New Campaign','#/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
-        <!-- Section 1: Campaign details -->
         <div class="card card-body mb-3">
           <h6 class="fw-bold mb-3"><i class="bi bi-card-text text-primary"></i> Campaign Details</h6>
           <div class="mb-3"><label class="form-label required">Title / Headline</label>
             <input id="adTitle" class="form-control" maxlength="200" required placeholder="e.g. 20% off all fishing rods this week"></div>
           <div class="mb-3"><label class="form-label">Description</label>
-            <textarea id="adDesc" class="form-control" rows="3" maxlength="500"
-              placeholder="Describe your offer, product, or service…"></textarea></div>
-          <div class="mb-1"><label class="form-label">Target URL (where the banner links to)</label>
+            <textarea id="adDesc" class="form-control" rows="3" maxlength="500" placeholder="Describe your offer…"></textarea></div>
+          <div class="mb-1"><label class="form-label">Target URL</label>
             <input id="adUrl" class="form-control" placeholder="https://yourshop.com"></div>
         </div>
 
-        <!-- Section 2: Banner artwork -->
         <div class="card card-body mb-3">
           <h6 class="fw-bold mb-3"><i class="bi bi-image text-primary"></i> Banner Artwork</h6>
-          <p class="small text-muted">Recommended 1200×300px. Upload from your device.</p>
+          <p class="small text-muted">Recommended 1200×300px.</p>
           ${UI.uploader('adImg', 'ads', { size: 90, label: 'Upload banner' })}
         </div>
 
-        <!-- Section 3: Schedule & contact -->
         <div class="card card-body mb-3">
-          <h6 class="fw-bold mb-3"><i class="bi bi-calendar-week text-primary"></i> Schedule &amp; Contact</h6>
-          <div class="row">
-            <div class="col-md-4 mb-3"><label class="form-label">Start Date</label>
-              <input id="adStart" type="date" class="form-control"></div>
-            <div class="col-md-4 mb-3"><label class="form-label">Contact Email</label>
-              <input id="adEmail" type="email" class="form-control" placeholder="you@shop.com"></div>
-            <div class="col-md-4 mb-3"><label class="form-label">Contact Phone</label>
-              <input id="adPhone" class="form-control" placeholder="01x-xxxxxxx"></div>
+          <h6 class="fw-bold mb-3"><i class="bi bi-badge-ad text-primary"></i> Placement &amp; Pricing</h6>
+          <div class="mb-3"><label class="form-label required">Where should it show?</label>
+            <select id="adPlacement" class="form-select" onchange="Dash.updateAdFee()">${opts}</select></div>
+          <div class="alert alert-primary py-2"><i class="bi bi-tag"></i> This ad: <b id="adFeeText">RM70</b> for a 7-day run.
+            <span class="text-muted">Runs from today; renew or auto-renew to continue.</span></div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="adAutoRenew">
+            <label class="form-check-label" id="adAutoRenewLabel" for="adAutoRenew"><b>Auto-renew</b> — charge the fee in credits every 7 days (stops when credits run out)</label>
           </div>
-          <div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> RM70 for a 7-day run. Admin approval required before it goes live. (Demo mode auto-pays.)</div>
+          <label class="form-label">Pay with:</label>
+          <div class="form-check"><input class="form-check-input" type="radio" name="adpay" id="adpayCredits" value="credits">
+            <label class="form-check-label" id="adpayCreditsLabel" for="adpayCredits">Credits</label></div>
+          <div class="form-check"><input class="form-check-input" type="radio" name="adpay" id="adpayCard" value="card" checked>
+            <label class="form-check-label" for="adpayCard">Card via Stripe</label></div>
+        </div>
+
+        <div class="card card-body mb-3">
+          <h6 class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-primary"></i> Contact (optional)</h6>
+          <div class="row">
+            <div class="col-md-6 mb-2"><input id="adEmail" type="email" class="form-control" placeholder="Contact email"></div>
+            <div class="col-md-6 mb-2"><input id="adPhone" class="form-control" placeholder="Contact phone"></div>
+          </div>
         </div>
 
         <button class="btn btn-success" id="adBtn"><i class="bi bi-credit-card"></i> Create &amp; Pay RM70</button>
       </form></div>`);
+    updateAdFee();
+  }
+  function updateAdFee() {
+    const p = document.getElementById('adPlacement').value;
+    const fee = Number((Dash._adPrices || {})[p] || 70);
+    const bal = Number((API.getUser() || {}).credits || 0);
+    document.getElementById('adFeeText').textContent = 'RM' + fee.toFixed(0);
+    document.getElementById('adBtn').innerHTML = `<i class="bi bi-credit-card"></i> Create & Pay RM${fee.toFixed(0)}`;
+    document.getElementById('adAutoRenewLabel').innerHTML = `<b>Auto-renew</b> — charge RM${fee.toFixed(0)} in credits every 7 days (stops when credits run out)`;
+    const cr = document.getElementById('adpayCredits');
+    cr.disabled = bal < fee;
+    document.getElementById('adpayCreditsLabel').innerHTML =
+      `Credits — RM${fee.toFixed(0)} <span class="text-muted">(balance: RM${bal.toFixed(2)})</span>` + (bal < fee ? ' <span class="text-danger">insufficient</span>' : '');
+    if (bal < fee) document.getElementById('adpayCard').checked = true;
   }
   async function submitAd(e) {
     e.preventDefault();
     const btn = document.getElementById('adBtn'); btn.disabled = true; btn.textContent='Processing…';
+    const payWith = document.querySelector('input[name="adpay"]:checked')?.value || 'card';
     try {
-      const res = await API.post('/advertisements', {
+      const res = await API.post('/advertisements?pay_with=' + payWith, {
         title: document.getElementById('adTitle').value,
         description: document.getElementById('adDesc').value || null,
         image_url: document.getElementById('adImg').value || null,
         target_url: document.getElementById('adUrl').value || null,
-        start_date: document.getElementById('adStart').value || null,
+        placement: document.getElementById('adPlacement').value,
         contact_email: document.getElementById('adEmail').value || null,
-        contact_phone: document.getElementById('adPhone').value || null });
+        contact_phone: document.getElementById('adPhone').value || null,
+        auto_renew: document.getElementById('adAutoRenew').checked });
       if (res.payment && res.payment.payment_url) { window.location.href = res.payment.payment_url; return; }
-      UI.toast('Campaign created & paid! Awaiting admin approval.','success'); location.hash = '#/advertiser';
-    } catch (err) { UI.toast(err.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-credit-card"></i> Create & Pay RM70'; }
+      if (payWith === 'credits') { await API.syncUser(); UI.renderNavbar(); }
+      UI.toast('Campaign created! Awaiting admin approval.','success'); location.hash = '#/organizer';
+    } catch (err) { UI.toast(err.message,'danger'); btn.disabled=false; btn.innerHTML='<i class="bi bi-credit-card"></i> Create & Pay'; }
   }
 
   // ---------- Fisherman ----------
@@ -464,7 +507,8 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
-  return { organizer, delEvent, delAd, readNotif, advertiser, newCampaign, submitAd, fisherman, submitCatch, markSold, delCatch,
+  return { organizer, delEvent, delAd, remindAdExpiry, readNotif, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
+    _adPrices: {},
     admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
     audit, loadAudit, exportAudit, users, setStatus };
 })();

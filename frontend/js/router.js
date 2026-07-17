@@ -21,11 +21,13 @@
       case '/events':           return Public.events(params);
       case '/catches':          return Public.catches();
       case '/spots':            return Public.spots();
+      case '/sponsored':        return Public.sponsored();
       case '/news':             return Public.news();
       case '/login':            return Auth.login();
       case '/register':         return Auth.register();
       case '/create-event':     return Auth.createEvent();
       case '/profile':          return Auth.profile();
+      case '/wallet':           return Auth.wallet();
       case '/saved':            return Auth.saved();
       case '/organizer':        return Dash.organizer();
       case '/advertiser':       return Dash.advertiser();

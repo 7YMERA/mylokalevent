@@ -119,23 +119,31 @@ async def get_event(event_id: int, increment_view: bool = True):
 async def create_event(
     payload: EventCreate,
     request: Request,
+    pay_with: str = "card",
     user: CurrentUser = Depends(require_roles("organizer", "admin")),
 ):
     if payload.end_date <= payload.start_date:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "end_date must be after start_date")
+
+    # Paying with credits? Verify the wallet covers the fee before creating anything.
+    if pay_with == "credits":
+        from app.services.credits_service import get_balance
+        if get_balance(int(user.id)) < EVENT_POSTING_FEE:
+            raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Insufficient credits")
 
     db = get_db()
     data = payload.model_dump(mode="json")
     data.update({"organizer_id": int(user.id), "status": "pending"})
     created = db.table("events").insert(data).execute().data[0]
 
-    # Create the RM10 posting-fee payment (mock auto-succeeds; real returns a bill URL).
+    # Create the RM10 posting-fee payment (credits = instant; card = Stripe/mock).
     payment = create_posting_payment(
         user_id=int(user.id),
         payable_type="event",
         payable_id=created["id"],
         amount=EVENT_POSTING_FEE,
         description=f"Event posting fee: {created['title']}",
+        pay_with=pay_with,
     )
     db.table("events").update({"payment_id": payment["id"]}).eq("id", created["id"]).execute()
     created["payment_id"] = payment["id"]

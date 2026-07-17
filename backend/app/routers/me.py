@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.dependencies import CurrentUser, get_current_user
+from app.services.credits_service import get_balance, recent_transactions
+from app.services.payment_service import create_topup_session
 
 router = APIRouter()
 
@@ -18,10 +20,44 @@ class ProfileUpdate(BaseModel):
     profile_image: str | None = None
 
 
+class TopupRequest(BaseModel):
+    amount: float = Field(gt=0, le=10000)  # RM to convert into credits
+
+
+# ---------------- Credit wallet ----------------
+@router.get("/wallet")
+async def my_wallet(user: CurrentUser = Depends(get_current_user)):
+    return {
+        "balance": get_balance(int(user.id)),
+        "transactions": recent_transactions(int(user.id), 50),
+    }
+
+
+@router.post("/wallet/topup")
+async def topup_wallet(payload: TopupRequest, user: CurrentUser = Depends(get_current_user)):
+    """Start a Stripe checkout to buy credits (RM amount -> credits, 1:1)."""
+    result = create_topup_session(user_id=int(user.id), amount=round(payload.amount, 2))
+    return {
+        "payment_url": result.get("payment_url"),
+        "mock": result.get("mock", False),
+        "balance": get_balance(int(user.id)),
+    }
+
+
+@router.post("/wallet/remind-low")
+async def remind_low_credits(user: CurrentUser = Depends(get_current_user)):
+    """Demo helper: send the 'credits running low' email to the current user now."""
+    from app.services.email_service import send_low_credits
+    email = get_db().table("users").select("email").eq("id", int(user.id)).execute().data
+    if email:
+        send_low_credits(email[0]["email"], get_balance(int(user.id)))
+    return {"message": "Low-balance reminder sent"}
+
+
 @router.get("/profile")
 async def my_profile(user: CurrentUser = Depends(get_current_user)):
     res = get_db().table("users").select(
-        "id,name,email,role,status,phone,profile_image,created_at"
+        "id,name,email,role,status,phone,profile_image,credits,created_at"
     ).eq("id", int(user.id)).execute()
     if not res.data:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
