@@ -31,15 +31,23 @@ services:
       - key: CORS_ORIGINS
         # Vercel frontend origin + the Render URL itself. No spaces, no trailing slashes.
         value: https://mylokalevent.vercel.app,https://mylokalevent.onrender.com
-      # Payments stay mocked (no ToyyibPay account); email + weather are live.
+      # Email + weather live. Payments via Stripe once STRIPE_SECRET_KEY is set
+      # (leave MOCK_PAYMENTS=true to auto-approve without Stripe).
       - key: MOCK_PAYMENTS
-        value: "true"
+        value: "false"
       - key: MOCK_EMAIL
         value: "false"
       - key: MOCK_WEATHER
         value: "false"
-      - key: TOYYIBPAY_BASE_URL
-        value: https://dev.toyyibpay.com
+      # Stripe
+      - key: STRIPE_SECRET_KEY
+        sync: false                  # paste your sk_test_... key in the dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false                  # optional: whsec_... from the webhook you create
+      - key: PAYMENT_CURRENCY
+        value: myr
+      - key: FRONTEND_URL
+        value: https://mylokalevent.vercel.app
       - key: SENDGRID_API_KEY
         sync: false                  # paste your SG. key in the dashboard
       - key: SENDGRID_FROM_EMAIL
