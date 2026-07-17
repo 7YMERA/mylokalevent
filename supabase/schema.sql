@@ -5,6 +5,7 @@
 -- =============================================================================
 
 -- ---- Clean slate (dev only) -------------------------------------------------
+drop table if exists credit_transactions cascade;
 drop table if exists post_comments cascade;
 drop table if exists posts cascade;
 drop table if exists saved_events cascade;
@@ -43,6 +44,7 @@ create table users (
     status          user_status  not null default 'active',
     phone           varchar(20),
     profile_image   varchar(500),
+    credits         numeric(10,2) not null default 0,     -- prepaid credit balance (1 credit = RM1)
     failed_attempts int          not null default 0,      -- for account lockout
     locked_until    timestamptz,                          -- null = not locked
     created_at      timestamptz  not null default now()
@@ -98,6 +100,8 @@ create table advertisements (
     amount_paid   numeric(10,2) not null default 70.00,
     clicks        int not null default 0,
     impressions   int not null default 0,
+    auto_renew    boolean not null default false,
+    placement     varchar(20) not null default 'featured',   -- top | side | featured | sponsored
     status        ad_status not null default 'pending',
     payment_id    bigint,
     reject_reason text,
@@ -205,6 +209,17 @@ create table posts (
     event_id   bigint references events(id) on delete set null,
     likes      int not null default 0,
     created_at timestamptz not null default now()
+);
+
+-- ---- 15. credit_transactions (prepaid wallet ledger) -----------------------
+create table credit_transactions (
+    id            bigint generated always as identity primary key,
+    user_id       bigint not null references users(id) on delete cascade,
+    amount        numeric(10,2) not null,
+    type          varchar(30) not null,
+    description   text,
+    balance_after numeric(10,2) not null,
+    created_at    timestamptz not null default now()
 );
 
 -- ---- 14. post_comments (community feed comments) ---------------------------

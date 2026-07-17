@@ -39,6 +39,7 @@ const Public = (() => {
           </div>
         </div>
       </section>
+      <div id="topBanner" class="container mt-3"></div>
       <div class="container mt-4">
         <!-- Featured events -->
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -61,6 +62,7 @@ const Public = (() => {
         <div id="composer" class="mb-3"></div>
         <div class="row" id="feed">${spinner()}</div>
       </div>`;
+    loadTopBanner();
     loadFeatured();
     loadAdStrip();
     loadFeed();
@@ -74,19 +76,69 @@ const Public = (() => {
     } catch (e) { document.getElementById('featured').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
+  // Click-through link wrapper that also fires an impression.
+  function adLink(a, inner, cls = '') {
+    return `<a href="${API.url('/advertisements/' + a.id + '/click')}" target="_blank" class="${cls} text-decoration-none"
+        onclick="fetch(API.url('/advertisements/${a.id}/impression'),{method:'POST'})">${inner}</a>`;
+  }
+
+  // Top banner (placement=top) — full-width strip near the top of the home page.
+  async function loadTopBanner() {
+    const box = document.getElementById('topBanner');
+    if (!box) return;
+    try {
+      const ads = await API.get('/advertisements?placement=top&page_size=1');
+      if (!ads.items.length) { box.innerHTML = ''; return; }
+      const a = ads.items[0];
+      const inner = `<div class="position-relative rounded shadow-sm overflow-hidden">
+        <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
+        ${a.image_url ? `<img src="${esc(a.image_url)}" class="w-100" style="max-height:120px;object-fit:cover">`
+          : `<div class="p-4 text-center text-white" style="background:linear-gradient(135deg,#1B6CA8,#2E75B6)"><b>${esc(a.title)}</b></div>`}</div>`;
+      box.innerHTML = adLink(a, inner, 'd-block');
+    } catch { box.innerHTML = ''; }
+  }
+
+  // Featured strip (placement=featured) between featured events and the feed.
   async function loadAdStrip() {
     try {
-      const ads = await API.get('/advertisements?page_size=1');
+      const ads = await API.get('/advertisements?placement=featured&page_size=1');
       const box = document.getElementById('adStrip');
       if (!ads.items.length) { box.innerHTML = ''; return; }
       const a = ads.items[0];
-      box.innerHTML = `<a href="${API.url('/advertisements/' + a.id + '/click')}" target="_blank"
-          class="d-block position-relative text-decoration-none"
-          onclick="fetch(API.url('/advertisements/${a.id}/impression'),{method:'POST'})">
+      const inner = `<div class="d-block position-relative">
         <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
         ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded shadow-sm w-100" style="max-height:140px;object-fit:cover">`
-          : `<div class="card card-body text-center text-primary">${esc(a.title)}</div>`}</a>`;
+          : `<div class="card card-body text-center text-primary">${esc(a.title)}</div>`}</div>`;
+      box.innerHTML = adLink(a, inner, 'd-block');
     } catch { document.getElementById('adStrip').innerHTML = ''; }
+  }
+
+  // ---------- Sponsored page (dedicated ad showcase) ----------
+  function adCard(a) {
+    const img = a.image_url
+      ? `<img src="${esc(a.image_url)}" class="event-thumb w-100" alt="">`
+      : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-megaphone" style="font-size:2.5rem"></i></div>`;
+    return `<div class="col-md-6 col-lg-4 mb-4"><div class="card card-hover h-100">
+      ${adLink(a, img)}
+      <div class="card-body">
+        <div class="mb-2"><span class="badge bg-warning text-dark">Sponsored</span>
+          <span class="badge bg-light text-primary border text-capitalize">${esc(a.placement || 'featured')}</span></div>
+        <h6>${esc(a.title)}</h6>
+        <p class="small text-muted">${esc(a.description || '')}</p>
+        ${adLink(a, '<i class="bi bi-box-arrow-up-right"></i> Visit', 'btn btn-sm btn-primary')}
+      </div></div></div>`;
+  }
+  async function sponsored() {
+    app().innerHTML = `<div class="container py-4">
+      <h3 class="mb-1"><i class="bi bi-megaphone text-primary"></i> Sponsored</h3>
+      <p class="text-muted">Businesses and services supporting the local fishing &amp; events community.</p>
+      <div class="row" id="sponsoredGrid">${spinner()}</div></div>`;
+    try {
+      const data = await API.get('/advertisements?page_size=50');
+      document.getElementById('sponsoredGrid').innerHTML = data.items.length
+        ? data.items.map(adCard).join('')
+        : empty('No sponsored ads right now. Advertise your business here!', 'megaphone');
+    } catch (e) { document.getElementById('sponsoredGrid').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
   // ---------- Community feed ----------
@@ -310,6 +362,7 @@ const Public = (() => {
               <option value="">Any</option><option value="free" ${f.fee==='free'?'selected':''}>Free</option>
               <option value="paid" ${f.fee==='paid'?'selected':''}>Paid</option></select></div>
         </div>
+        <div id="sideBanner" class="mt-3"></div>
       </aside>
       <div class="col-lg-9">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -329,6 +382,21 @@ const Public = (() => {
       const cats = await API.get('/categories?kind=event');
       document.getElementById('fcat').innerHTML = '<option value="">All</option>' +
         cats.map(c => `<option value="${c.id}" ${String(c.id) === String(f.category_id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+    } catch {}
+
+    // Side banner ad (placement=side)
+    try {
+      const ads = await API.get('/advertisements?placement=side&page_size=1');
+      const box = document.getElementById('sideBanner');
+      if (box && ads.items.length) {
+        const a = ads.items[0];
+        const inner = `<div class="card card-body p-2 position-relative">
+          <span class="badge bg-dark position-absolute top-0 end-0 m-1 opacity-75" style="font-size:.6rem">Ad</span>
+          ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded mb-1">` : ''}
+          <div class="small fw-bold">${esc(a.title)}</div>
+          <div class="small text-muted">${esc((a.description || '').slice(0, 50))}</div></div>`;
+        box.innerHTML = adLink(a, inner, 'd-block');
+      }
     } catch {}
 
     refreshResults(f.page || 1);
@@ -496,7 +564,7 @@ const Public = (() => {
     } catch (e) { document.getElementById('newsList').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  return { home, loadFeatured, loadAdStrip, loadFeed, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
+  return { home, loadFeatured, loadTopBanner, loadAdStrip, loadFeed, sponsored, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
     toggleComments, submitComment, deleteComment,
     events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news,
     _f: {}, _composerEvents: [] };

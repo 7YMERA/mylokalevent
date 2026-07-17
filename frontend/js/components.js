@@ -132,13 +132,17 @@ const UI = (() => {
     const avatar = user.profile_image
       ? `<img src="${esc(user.profile_image)}" class="rounded-circle" style="width:26px;height:26px;object-fit:cover">`
       : '<i class="bi bi-person-circle"></i>';
+    const bal = Number(user.credits || 0);
     nav.innerHTML = `
+      <li class="nav-item"><a class="nav-link" href="#/wallet" title="Credit balance">
+        <span class="badge bg-light text-primary"><i class="bi bi-wallet2"></i> RM${bal.toFixed(2)}</span></a></li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" data-bs-toggle="dropdown">
           ${avatar} ${esc(user.name)} <span class="badge bg-light text-primary">${esc(user.role)}</span>
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
           <li><a class="dropdown-item" href="#/profile"><i class="bi bi-person"></i> My Profile</a></li>
+          <li><a class="dropdown-item" href="#/wallet"><i class="bi bi-wallet2"></i> Wallet <span class="text-muted">(RM${bal.toFixed(2)})</span></a></li>
           <li><a class="dropdown-item" href="${dashByRole[user.role] || '#/'}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
           ${user.role === 'organizer' ? `<li><a class="dropdown-item" href="#/create-event"><i class="bi bi-plus-circle"></i> Post Event</a></li>
           <li><a class="dropdown-item" href="#/advertiser/new"><i class="bi bi-megaphone"></i> Create Ad</a></li>` : ''}
