@@ -1,6 +1,6 @@
 /* Auth views: login, register, event submission wizard, saved events. */
 const Auth = (() => {
-  const { app, spinner, empty, esc, money, fmtDate, eventCard, STATES } = UI;
+  const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, eventCard, STATES } = UI;
 
   // ---------- Login ----------
   function login() {
