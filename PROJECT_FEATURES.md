@@ -4,7 +4,7 @@
 > MyLokalEvent platform does and how it is built. Hand this to another AI chat
 > (or a teammate) to generate a report, slides, or documentation.
 > **Keep this updated whenever new features are added.**
-> _Last updated: 2026-07 (batch 7 — credit wallet + ad placements)._
+> _Last updated: 2026-07 (batch 8 — ads promote & redirect to their event)._
 
 ---
 
@@ -130,6 +130,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Pay ad fee with **Stripe** or **credits**
 - **Admin approval** required before an ad goes live
 - **Placement rendering:** homepage top banner + featured strip, events-page side banner, dedicated **Sponsored page** (nav link)
+- **Ads promote an event** (Roblox-style): the organizer picks which of their events an ad promotes, and **clicking the ad redirects to that event's page** (external URL kept as an optional fallback). Ad cards show "Promoting: [Event]" with a "View Event" button.
 - **Click-through tracking** (redirect) + **impression tracking**; CTR shown on the dashboard
 - Emails: **ad approved/rejected**, **ad expiring soon**, **ad auto-renewed / stopped (out of credits)**
 
