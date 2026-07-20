@@ -86,6 +86,20 @@ def send_event_rejected(to_email: str, title: str, reason: str) -> bool:
                             f"<p><b>Reason:</b> {reason}</p>"))
 
 
+def send_ad_approved(to_email: str, title: str) -> bool:
+    return send_email(to_email, f"Your ad '{title}' is approved",
+                      _wrap("Ad Approved ✅",
+                            f"<p>Great news! Your campaign <b>{title}</b> has been approved and is now "
+                            f"running across MyLokalEvent.</p>"))
+
+
+def send_ad_rejected(to_email: str, title: str, reason: str) -> bool:
+    return send_email(to_email, f"Your ad '{title}' was not approved",
+                      _wrap("Ad Rejected",
+                            f"<p>Your campaign <b>{title}</b> was not approved.</p>"
+                            f"<p><b>Reason:</b> {reason}</p>"))
+
+
 def send_payment_invoice(to_email: str, item: str, amount: float, ref: str) -> bool:
     return send_email(to_email, "Payment received — Invoice",
                       _wrap("Payment Received 🧾",
