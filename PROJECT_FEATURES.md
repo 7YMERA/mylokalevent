@@ -99,6 +99,8 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 
 ### 5.1 Authentication & Accounts
 - Register (self-service roles: user, organizer, fisherman — admin is provisioned manually)
+- **Confirm-password field** with **live match feedback** (green ✓ / red ✗) that blocks submission on mismatch
+- **Country-code phone picker** — a dropdown of 23 countries (**default Malaysia +60**, sorted alphabetically) + number, combined into international format on submit (e.g. `+60123456789`); used on register and profile edit
 - Login with JWT issuance; wrong-password and lockout handling
 - Logout (audit-logged)
 - **Welcome email** on registration (SendGrid)
