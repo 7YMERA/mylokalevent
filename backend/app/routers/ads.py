@@ -21,10 +21,11 @@ router = APIRouter()
 
 AD_DURATION_DAYS = 7
 
-# Tiered pricing by placement (7-day cycle). Premium real estate costs more.
-# "feed" = a native sponsored post interleaved into the community feed
-# (social-media style: a caption + image + link to the promoted event).
-PLACEMENT_PRICES = {"side": 40.00, "feed": 50.00, "featured": 70.00, "sponsored": 90.00, "top": 130.00}
+# Tiered pricing by PURCHASABLE placement (7-day cycle). Premium real estate
+# costs more. "feed" = a native sponsored post interleaved into the community
+# feed. NOTE: "sponsored" is NOT a purchasable placement — the /sponsored page
+# is a free showcase that lists EVERY active ad regardless of its placement.
+PLACEMENT_PRICES = {"side": 40.00, "feed": 50.00, "featured": 70.00, "top": 130.00}
 DEFAULT_PLACEMENT = "featured"
 
 

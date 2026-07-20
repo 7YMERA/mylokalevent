@@ -120,14 +120,14 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Emails: **event submitted (pending approval)**, **approved**, **rejected** — to the organizer
 
 ### 5.3 Advertising System (old-Roblox-inspired)
-- **5 placement types with tiered 7-day pricing:**
+- **4 purchasable placement types with tiered 7-day pricing** — each ad shows **only** in the placement it bought (strict; no leaking across spots):
   | Placement | Where it shows | Price / 7 days |
   |---|---|---|
-  | **Top banner** | Strip near the top of the homepage/pages | **RM130** |
-  | **Sponsored page** | Dedicated `/sponsored` showcase page | **RM90** |
-  | **Featured** | Homepage strip + listings | **RM70** |
+  | **Top banner** | Full-width strip near the top of the homepage | **RM130** |
+  | **Featured** | Boosts the promoted event to the front of homepage Featured Events (external-link featured ads show as the sponsored strip) | **RM70** |
   | **Feed post** | Native sponsored post inside the community feed | **RM50** |
-  | **Side banner** | Events page sidebar | **RM40** |
+  | **Side banner** | Events & Catch-of-the-Day sidebar rail | **RM40** |
+- **Sponsored page** (`/sponsored`) is **not a purchasable placement** — it's a **free showcase that lists every active ad** regardless of placement (a bonus for all sponsors)
 - Ad creation form with **live price** that updates by placement; banner upload; contact details; the **"promote which event?"** picker lists **only the organizer's live events** (expired/pending hidden)
 - **Organizer dashboard = campaigns at a glance:** a compact **read-only** summary card sits **beside "My Events"** — status counts (Active / Expiring / Expired), a short campaign list (placement · CTR · auto-renew · days-left), and totals (impressions / clicks / avg CTR), with a **"Manage →"** button to the full campaigns page. No editing on the dashboard.
 - **Campaign management page** (`/advertiser`): filter tabs (**All / Active / Expiring soon / Expired**) with live counts, an **"Ends" date** column, an **"expiring soon" badge**, and a per-ad **Auto-renew** badge
@@ -137,7 +137,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Pay ad fee with **Stripe** or **credits**
 - **Admin approval** required before an ad goes live
 - **Placement rendering:** homepage top banner + featured strip, **events & Catch-of-the-Day sidebar "Sponsored" rail** (a few rotating ads), dedicated **Sponsored page** (nav link)
-- **Sponsored featured events:** events that an active ad campaign promotes are **boosted to the front of the homepage's Featured Events** as "Sponsored" cards (up to 3); their clicks route through the ad's click endpoint so the campaign is credited (impression + click)
+- **Sponsored featured events:** events promoted by a **featured-placement** ad are **boosted to the front of the homepage's Featured Events** as "Sponsored" cards (up to 3); their clicks route through the ad's click endpoint so the campaign is credited (impression + click). Only featured-placement ads qualify — a top/side/feed ad never appears here.
 - **Native sponsored feed posts** (`feed` placement): advertisers publish a **social-media-style promoted post** — headline + caption + image + "View Event" button — that's **interleaved among the real community posts** (one after every few posts, shuffled per load). Looks like an organic post but tagged "Sponsored"; the CTA redirects to the promoted event.
 - **Ads promote an event** (Roblox-style): the organizer picks which of their events an ad promotes, and **clicking the ad redirects to that event's page** (external URL kept as an optional fallback). Ad cards show "Promoting: [Event]" with a "View Event" button.
 - **Rotation:** each banner slot (top/featured/side) shows a **random active ad of that placement on every page load** (ad-network style); the Sponsored page lists them all. Only **admin-approved (active)** ads are shown.
