@@ -128,8 +128,9 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
   | **Feed post** | Native sponsored post inside the community feed | **RM50** |
   | **Side banner** | Events page sidebar | **RM40** |
 - Ad creation form with **live price** that updates by placement; banner upload; contact details; the **"promote which event?"** picker lists **only the organizer's live events** (expired/pending hidden)
-- **Campaign lifecycle view** (organizer dashboard **and** the standalone `/advertiser` campaigns page): filter tabs (**All / Active / Expiring soon / Expired**) with live counts, an **"Ends" date** column, an **"expiring soon" badge** (≤2 days left / ends today), and a per-ad **Auto-renew vs No-auto-renew** badge
-- **Campaign detail modal:** click any campaign to see all its fields (status, placement, promoted event/link, description, contact, run dates, auto-renew, impressions/clicks/CTR) with an **inline banner uploader** that updates the ad image **live** (PUT), reflected in the modal and the table
+- **Organizer dashboard = campaigns at a glance:** a compact **read-only** summary card sits **beside "My Events"** — status counts (Active / Expiring / Expired), a short campaign list (placement · CTR · auto-renew · days-left), and totals (impressions / clicks / avg CTR), with a **"Manage →"** button to the full campaigns page. No editing on the dashboard.
+- **Campaign management page** (`/advertiser`): filter tabs (**All / Active / Expiring soon / Expired**) with live counts, an **"Ends" date** column, an **"expiring soon" badge**, and a per-ad **Auto-renew** badge
+- **Campaign detail modal** (on the management page): click any campaign to see all its fields (status, placement, promoted event/link, description, contact, run dates, auto-renew, impressions/clicks/CTR) with an **inline banner uploader** that updates the ad image **live** (PUT), reflected in the modal and the table
 - **No manual dates** — runs 7 days from creation (start date shown)
 - **Auto-renew toggle:** charges the placement price in **credits** every 7 days; **stops automatically** when credits run out (with email)
 - Pay ad fee with **Stripe** or **credits**
