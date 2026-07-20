@@ -4,6 +4,33 @@ const Dash = (() => {
   let charts = [];
   function clearCharts() { charts.forEach(c => c.destroy()); charts = []; }
 
+  // Classify an ad by where it is in its 7-day lifecycle so campaigns can be
+  // grouped/filtered: active, expiring (≤2 days left), expired, or other
+  // (pending / rejected). daysLeft is whole days until end_date.
+  function adLifecycle(a) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let daysLeft = null;
+    if (a.end_date) {
+      const end = new Date(a.end_date); end.setHours(0, 0, 0, 0);
+      daysLeft = Math.round((end - today) / 86400000);
+    }
+    let key;
+    if (a.status === 'expired' || (daysLeft !== null && daysLeft < 0)) key = 'expired';
+    else if (a.status === 'active' && daysLeft !== null && daysLeft <= 2) key = 'expiring';
+    else if (a.status === 'active') key = 'active';
+    else key = 'other';   // pending / rejected
+    return { key, daysLeft };
+  }
+
+  // Filter the campaigns table by lifecycle group (wired to the filter tabs).
+  function filterAds(btn, group) {
+    btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#adTableBody tr[data-adgroup]').forEach(tr => {
+      tr.style.display = (group === 'all' || tr.dataset.adgroup === group) ? '' : 'none';
+    });
+  }
+
   // Inner KPI card (no column wrapper) — lets it be wrapped in a link.
   function kpiInner(val, label, cls, icon) {
     return `<div class="kpi p-3 ${cls} h-100">
@@ -127,15 +154,31 @@ const Dash = (() => {
         <td class="text-center">${e.view_count||0}</td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delEvent(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
 
-      const adRows = ad.campaigns.map(a => `<tr>
-        <td>${a.image_url?`<img src="${esc(a.image_url)}" width="56" class="rounded">`:'<span class="text-muted">—</span>'}</td>
-        <td>${esc(a.title)}<div class="small text-muted"><span class="text-capitalize">${esc(a.placement||'featured')}</span>${a.auto_renew?' · auto-renew':''}${a.event_title?' · → '+esc(a.event_title):''}</div></td>
-        <td>${statusBadge(a.status)}</td>
-        <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
-        <td class="text-center"><b>${a.ctr||0}%</b></td>
-        <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-primary" title="Send expiry reminder (demo)" onclick="Dash.remindAdExpiry(${a.id})"><i class="bi bi-bell"></i></button>
-          <button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
+      const lc = ad.campaigns.map(adLifecycle);
+      const nActive = lc.filter(x => x.key === 'active').length;
+      const nExpiring = lc.filter(x => x.key === 'expiring').length;
+      const nExpired = lc.filter(x => x.key === 'expired').length;
+
+      const adRows = ad.campaigns.map((a, i) => {
+        const L = lc[i];
+        const renewBadge = a.auto_renew
+          ? '<span class="badge bg-success"><i class="bi bi-arrow-repeat"></i> Auto-renew</span>'
+          : '<span class="badge bg-light text-muted border"><i class="bi bi-slash-circle"></i> No auto-renew</span>';
+        const expiringBadge = L.key === 'expiring'
+          ? `<div class="mt-1"><span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span></div>` : '';
+        return `<tr data-adgroup="${L.key}">
+          <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="56" class="rounded">` : '<span class="text-muted">—</span>'}</td>
+          <td>${esc(a.title)}
+            <div class="small text-muted"><span class="text-capitalize">${esc(a.placement || 'featured')}</span>${a.event_title ? ' · → ' + esc(a.event_title) : ''}</div>
+            <div class="mt-1">${renewBadge}</div></td>
+          <td>${statusBadge(a.status)}${expiringBadge}</td>
+          <td class="text-center">${a.impressions || 0}</td><td class="text-center">${a.clicks || 0}</td>
+          <td class="text-center"><b>${a.ctr || 0}%</b></td>
+          <td class="small text-nowrap">${a.end_date ? fmtDate(a.end_date) : '—'}</td>
+          <td class="text-nowrap">
+            <button class="btn btn-sm btn-outline-primary" title="Send expiry reminder (demo)" onclick="Dash.remindAdExpiry(${a.id})"><i class="bi bi-bell"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+      }).join('');
 
       document.getElementById('orgMain').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
         <div class="row">
@@ -158,10 +201,16 @@ const Dash = (() => {
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h5>
           <a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div>
+        <div class="btn-group btn-group-sm mb-2 flex-wrap" role="group" aria-label="Filter campaigns">
+          <button type="button" class="btn btn-outline-primary active" onclick="Dash.filterAds(this,'all')">All <span class="badge bg-secondary">${ad.campaigns.length}</span></button>
+          <button type="button" class="btn btn-outline-success" onclick="Dash.filterAds(this,'active')">Active <span class="badge bg-success">${nActive}</span></button>
+          <button type="button" class="btn btn-outline-warning" onclick="Dash.filterAds(this,'expiring')">Expiring soon <span class="badge bg-warning text-dark">${nExpiring}</span></button>
+          <button type="button" class="btn btn-outline-secondary" onclick="Dash.filterAds(this,'expired')">Expired <span class="badge bg-secondary">${nExpired}</span></button>
+        </div>
         <div class="row">
           <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-            <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th></th></tr></thead>
-            <tbody>${adRows || `<tr><td colspan="7">${empty('No ad campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
+            <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th>Ends</th><th></th></tr></thead>
+            <tbody id="adTableBody">${adRows || `<tr><td colspan="8">${empty('No ad campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
           <div class="col-lg-4"><div class="card card-body"><h6>Clicks by Campaign</h6><canvas id="adChart" height="200"></canvas></div></div>
         </div>`;
 
@@ -238,7 +287,10 @@ const Dash = (() => {
     try { myEvents = (await API.get('/me/organizer-summary')).events || []; } catch {}
     const opts = ['top', 'sponsored', 'featured', 'feed', 'side']
       .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
-    const eventOpts = myEvents.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 45))} (${esc(e.status)})</option>`).join('');
+    // Only LIVE events can be promoted — sending traffic to an expired or
+    // still-pending event page makes no sense.
+    const liveEvents = myEvents.filter(e => e.status === 'live');
+    const eventOpts = liveEvents.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 45))}</option>`).join('');
     app().innerHTML = shell('New Campaign','/advertiser/new', `<div class="col-lg-8">
       <form onsubmit="Dash.submitAd(event)">
         <div class="card card-body mb-3">
@@ -250,7 +302,9 @@ const Dash = (() => {
           <div class="mb-3"><label class="form-label"><i class="bi bi-megaphone"></i> Promote which event?</label>
             <select id="adEvent" class="form-select">
               <option value="">— none (use external link below) —</option>${eventOpts}</select>
-            <div class="form-text">Clicking this ad takes visitors straight to the event's page.</div></div>
+            <div class="form-text">${liveEvents.length
+              ? 'Only your <b>live</b> events are listed. Clicking this ad takes visitors straight to the event\'s page.'
+              : 'You have no live events to promote yet — use an external link below, or post an event first.'}</div></div>
           <div class="mb-1"><label class="form-label">Or external link (optional)</label>
             <input id="adUrl" class="form-control" placeholder="https://yourshop.com — used only if no event selected"></div>
         </div>
@@ -579,7 +633,7 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
-  return { organizer, delEvent, delAd, remindAdExpiry, readNotif, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
+  return { organizer, delEvent, delAd, remindAdExpiry, readNotif, filterAds, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
     _adPrices: {},
     admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
     audit, loadAudit, exportAudit, users, setStatus };
