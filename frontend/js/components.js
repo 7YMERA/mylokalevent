@@ -115,6 +115,43 @@ const UI = (() => {
     }
   }
 
+  // Country dialing codes (Malaysia first / default; common neighbours & others).
+  const COUNTRY_CODES = [
+    ['MY', '+60'], ['SG', '+65'], ['ID', '+62'], ['TH', '+66'], ['BN', '+673'],
+    ['PH', '+63'], ['VN', '+84'], ['KH', '+855'], ['MM', '+95'], ['IN', '+91'],
+    ['CN', '+86'], ['JP', '+81'], ['KR', '+82'], ['HK', '+852'], ['TW', '+886'],
+    ['AU', '+61'], ['NZ', '+64'], ['GB', '+44'], ['US', '+1'], ['AE', '+971'],
+    ['SA', '+966'], ['PK', '+92'], ['BD', '+880'],
+  ];
+
+  // A phone input: [country-code dropdown][number]. Defaults to Malaysia (+60).
+  // `defaultCode` / `defaultNumber` pre-fill it (e.g. when editing a profile).
+  function phoneField(codeId, numId, defaultCode = '+60', defaultNumber = '') {
+    return `<div class="input-group">
+      <select id="${codeId}" class="form-select flex-grow-0" style="max-width:120px">
+        ${COUNTRY_CODES.map(([c, d]) => `<option value="${d}" ${d === defaultCode ? 'selected' : ''}>${c} ${d}</option>`).join('')}
+      </select>
+      <input id="${numId}" type="tel" class="form-control" placeholder="12-345 6789" value="${esc(defaultNumber)}">
+    </div>`;
+  }
+
+  // Split a stored "+60123…" back into [code, number] for editing.
+  function splitPhone(full) {
+    if (!full) return ['+60', ''];
+    const codes = COUNTRY_CODES.map(x => x[1]).sort((a, b) => b.length - a.length);
+    for (const d of codes) { if (full.startsWith(d)) return [d, full.slice(d.length)]; }
+    return ['+60', full.replace(/^\+/, '')];
+  }
+
+  // Combine the code + number into an E.164-style string (or null if empty).
+  function fullPhone(codeId, numId) {
+    const code = document.getElementById(codeId)?.value || '';
+    let num = (document.getElementById(numId)?.value || '').replace(/[^0-9]/g, '');
+    if (!num) return null;
+    num = num.replace(/^0+/, '');   // drop leading zero(s): 012… -> 12…
+    return code + num;
+  }
+
   // Malaysian states (+ a few districts for the demo dropdowns)
   const STATES = ['Johor','Kedah','Kelantan','Melaka','Negeri Sembilan','Pahang','Perak','Perlis',
     'Pulau Pinang','Sabah','Sarawak','Selangor','Terengganu','Kuala Lumpur','Labuan','Putrajaya'];
@@ -173,5 +210,5 @@ const UI = (() => {
   }
 
   return { app, toast, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventCard,
-    STATES, renderNavbar, doLogout, requireRole, uploader, handleUpload, skeleton, skeletonCards, skeletonKpis };
+    STATES, phoneField, fullPhone, splitPhone, renderNavbar, doLogout, requireRole, uploader, handleUpload, skeleton, skeletonCards, skeletonKpis };
 })();
