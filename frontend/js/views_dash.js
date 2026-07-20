@@ -55,12 +55,15 @@ const Dash = (() => {
   }
 
   // ---------- Left widget rail (replaces the nav sidebar) ----------
+  // Centered avatar + name-below profile card (shared by the dashboard rails).
+  // The avatar sits in a flex-centered wrapper so the image and the initial
+  // fallback are centered identically.
   function profileCard(me) {
     const av = me.profile_image
-      ? `<img src="${esc(me.profile_image)}" class="rounded-circle mb-2" style="width:72px;height:72px;object-fit:cover">`
-      : `<div class="rounded-circle avatar-initial mx-auto mb-2" style="width:72px;height:72px;font-size:1.6rem">${esc((me.name||'?').charAt(0).toUpperCase())}</div>`;
+      ? `<img src="${esc(me.profile_image)}" class="rounded-circle" style="width:80px;height:80px;object-fit:cover" alt="">`
+      : `<div class="rounded-circle avatar-initial" style="width:80px;height:80px;font-size:1.8rem">${esc((me.name||'?').charAt(0).toUpperCase())}</div>`;
     return `<div class="card card-body text-center mb-3">
-      ${av}
+      <div class="d-flex justify-content-center mb-2">${av}</div>
       <h6 class="mb-0">${esc(me.name)}</h6>
       <div class="mb-2"><span class="badge bg-light text-primary border text-capitalize">${esc(me.role)}</span></div>
       <a href="/profile" class="btn btn-sm btn-outline-primary"><i class="bi bi-person"></i> View Profile</a>
