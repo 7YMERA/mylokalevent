@@ -41,12 +41,24 @@ class Settings(BaseSettings):
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
 
-    # SMTP (preferred — e.g. Gmail with an App Password; most reliable for demos).
-    # If these are set, email is sent via SMTP instead of SendGrid.
+    # Email is sent via a fallback chain, in this order (first configured wins,
+    # next is tried only if the previous FAILS): SMTP → Brevo → Resend → SendGrid.
+    # SMTP (Gmail App Password) delivers best; the HTTP APIs (Brevo/Resend) are the
+    # fallback for hosts that block outbound SMTP (some free PaaS do).
+
+    # SMTP (e.g. Gmail with an App Password).
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
+
+    # Brevo (Sendinblue) transactional HTTP API — https://app.brevo.com → SMTP & API.
+    brevo_api_key: str = ""
+
+    # Resend HTTP API — https://resend.com. `resend_from` overrides the sender
+    # (needs a verified domain, or use "onboarding@resend.dev" for testing).
+    resend_api_key: str = ""
+    resend_from: str = ""
 
     # SendGrid
     sendgrid_api_key: str = ""

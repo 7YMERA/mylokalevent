@@ -24,16 +24,16 @@ def _resolve_recipient(to_email: str) -> tuple[str, str]:
 
 
 def send_email(to_email: str, subject: str, html: str) -> bool:
-    """Send an email. Returns True on success. Never raises (best-effort).
+    """Send an email via a fallback chain. Returns True on success. Never raises.
 
-    Provider is chosen automatically:
-      1. SMTP (e.g. Gmail with an App Password) if SMTP_HOST/USER/PASSWORD are set —
-         the most reliable for a demo, because the mail is genuinely sent by that
-         provider and passes SPF/DKIM/DMARC (so it lands in the inbox, not spam).
-      2. SendGrid if only an API key is set. NOTE: sending "from" a @gmail.com
-         address via SendGrid fails SPF/DKIM alignment for gmail.com, so strict
-         receivers (e.g. university mail) often mark it spam or drop it — prefer SMTP.
-      3. Otherwise mock (print to console) so the app runs offline.
+    Providers are tried in order; the next is used only if the previous FAILS:
+      1. SMTP (e.g. Gmail App Password) — best inbox delivery (mail is genuinely
+         sent by that provider and passes SPF/DKIM/DMARC).
+      2. Brevo (HTTP API) — fallback for hosts that block outbound SMTP.
+      3. Resend (HTTP API) — another HTTP fallback.
+      4. SendGrid (HTTP API) — last (note: "from" a @gmail address fails DMARC and
+         often gets junked; kept only for backwards compatibility).
+      5. mock (print to console) if nothing is configured, so the app runs offline.
     """
     recipient, note = _resolve_recipient(to_email)
     html = note + html
@@ -41,12 +41,29 @@ def send_email(to_email: str, subject: str, html: str) -> bool:
     if settings.mock_email:
         print(f"[email:mock] to={recipient} (for {to_email}) | {subject}")
         return True
+
+    chain = []
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
-        return _send_smtp(recipient, subject, html)
+        chain.append(("smtp", _send_smtp))
+    if settings.brevo_api_key:
+        chain.append(("brevo", _send_brevo))
+    if settings.resend_api_key:
+        chain.append(("resend", _send_resend))
     if settings.sendgrid_api_key:
-        return _send_sendgrid(recipient, subject, html)
-    print(f"[email:mock] no provider configured — to={recipient} | {subject}")
-    return True
+        chain.append(("sendgrid", _send_sendgrid))
+
+    if not chain:
+        print(f"[email:mock] no provider configured — to={recipient} | {subject}")
+        return True
+
+    for i, (name, fn) in enumerate(chain):
+        if fn(recipient, subject, html):
+            if i > 0:
+                print(f"[email] delivered via fallback provider '{name}' (earlier ones failed)")
+            return True
+        print(f"[email] provider '{name}' failed — trying next…")
+    print(f"[email] ALL providers failed for {recipient} | {subject}")
+    return False
 
 
 def _send_smtp(to_email: str, subject: str, html: str) -> bool:
@@ -90,6 +107,48 @@ def _send_sendgrid(to_email: str, subject: str, html: str) -> bool:
         return 200 <= resp.status_code < 300
     except Exception as exc:  # pragma: no cover
         print(f"[email:sendgrid] send failed: {exc}")
+        return False
+
+
+def _send_brevo(to_email: str, subject: str, html: str) -> bool:
+    """Brevo (Sendinblue) transactional HTTP API — works where SMTP ports are blocked."""
+    import httpx
+
+    try:
+        resp = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": settings.brevo_api_key, "accept": "application/json",
+                     "content-type": "application/json"},
+            json={
+                "sender": {"email": settings.sendgrid_from_email, "name": settings.sendgrid_from_name},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html,
+            },
+            timeout=20,
+        )
+        return 200 <= resp.status_code < 300
+    except Exception as exc:  # pragma: no cover
+        print(f"[email:brevo] send failed: {exc}")
+        return False
+
+
+def _send_resend(to_email: str, subject: str, html: str) -> bool:
+    """Resend HTTP API — another HTTP fallback."""
+    import httpx
+
+    sender = settings.resend_from or f"{settings.sendgrid_from_name} <{settings.sendgrid_from_email}>"
+    try:
+        resp = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}",
+                     "content-type": "application/json"},
+            json={"from": sender, "to": [to_email], "subject": subject, "html": html},
+            timeout=20,
+        )
+        return 200 <= resp.status_code < 300
+    except Exception as exc:  # pragma: no cover
+        print(f"[email:resend] send failed: {exc}")
         return False
 
 
