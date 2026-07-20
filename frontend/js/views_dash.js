@@ -223,16 +223,17 @@ const Dash = (() => {
     top: 'Top banner — shows across the top of every page (most visible)',
     sponsored: 'Sponsored page — featured on the dedicated Sponsored page',
     featured: 'Featured card — appears in event listings & homepage',
+    feed: 'Community feed post — a native sponsored post in the feed',
     side: 'Side banner — shows in the events sidebar',
   };
   async function newCampaign() {
     const u = UI.requireRole('organizer','admin'); if (!u) return;
-    let prices = { side: 40, featured: 70, sponsored: 90, top: 130 };
+    let prices = { side: 40, feed: 50, featured: 70, sponsored: 90, top: 130 };
     try { prices = (await API.get('/advertisements/pricing')).placements; } catch {}
     Dash._adPrices = prices;
     let myEvents = [];
     try { myEvents = (await API.get('/me/organizer-summary')).events || []; } catch {}
-    const opts = ['top', 'sponsored', 'featured', 'side']
+    const opts = ['top', 'sponsored', 'featured', 'feed', 'side']
       .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
     const eventOpts = myEvents.map(e => `<option value="${e.id}">${esc(e.title.slice(0, 45))} (${esc(e.status)})</option>`).join('');
     app().innerHTML = shell('New Campaign','/advertiser/new', `<div class="col-lg-8">
