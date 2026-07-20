@@ -87,6 +87,16 @@ const API = (() => {
     return u;
   }
 
+  // Merge a partial update into the cached user (no network call) — e.g. to keep
+  // the navbar's credit balance in sync with an authoritative value we already have.
+  function updateCachedUser(patch) {
+    const u = getUser();
+    if (!u) return null;
+    const merged = { ...u, ...patch };
+    localStorage.setItem(USER_KEY, JSON.stringify(merged));
+    return merged;
+  }
+
   // query string helper
   const qs = (obj) => {
     const p = new URLSearchParams();
@@ -95,5 +105,5 @@ const API = (() => {
     return s ? `?${s}` : '';
   };
 
-  return { get, post, put, del, upload, login, register, logout, syncUser, getUser, getToken, isAuthed, clearSession, qs, base, url };
+  return { get, post, put, del, upload, login, register, logout, syncUser, updateCachedUser, getUser, getToken, isAuthed, clearSession, qs, base, url };
 })();

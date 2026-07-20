@@ -318,6 +318,13 @@ const Auth = (() => {
     try { w = await API.get('/me/wallet'); }
     catch (e) { app().innerHTML = `<div class="container py-5">${empty(e.message, 'exclamation-triangle')}</div>`; return; }
 
+    // Keep the navbar's balance pill in sync with the authoritative wallet balance.
+    const me = API.getUser();
+    if (me && Number(me.credits) !== Number(w.balance)) {
+      API.updateCachedUser({ credits: w.balance });
+      UI.renderNavbar();
+    }
+
     const txnRows = w.transactions.map(t => {
       const pos = Number(t.amount) >= 0;
       const typeLabel = { topup: 'Top-up', event: 'Event fee', advertisement: 'Ad fee', ad_renewal: 'Ad renewal' }[t.type] || t.type;

@@ -66,7 +66,16 @@ window.navigate = navigate;
     navigate(href);
   });
 
+  function boot() {
+    UI.renderNavbar();      // instant paint from the cached session
+    route();
+    // Refresh the cached user from the server and repaint the navbar. This keeps
+    // the credit balance current after a full page reload — e.g. returning from
+    // Stripe checkout after a wallet top-up, where the cached credits are stale.
+    if (API.isAuthed()) API.syncUser().then(() => UI.renderNavbar()).catch(() => {});
+  }
+
   window.addEventListener('popstate', route);
-  window.addEventListener('DOMContentLoaded', () => { UI.renderNavbar(); route(); });
-  if (document.readyState !== 'loading') { UI.renderNavbar(); route(); }
+  window.addEventListener('DOMContentLoaded', boot);
+  if (document.readyState !== 'loading') boot();
 })();
