@@ -56,6 +56,23 @@ async def my_catches(user: CurrentUser = Depends(require_roles("fisherman", "adm
     return res.data
 
 
+@router.get("/{catch_id}")
+async def get_catch(catch_id: int):
+    """Public catch detail, enriched with the seller's contact so buyers can
+    reach out (name + email/phone)."""
+    db = get_db()
+    res = db.table("fish_catches").select("*").eq("id", catch_id).execute()
+    if not res.data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Catch not found")
+    c = res.data[0]
+    seller = db.table("users").select("name,email,phone").eq("id", c["user_id"]).execute().data
+    if seller:
+        c["seller_name"] = seller[0].get("name")
+        c["seller_email"] = seller[0].get("email")
+        c["seller_phone"] = seller[0].get("phone")
+    return c
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_catch(payload: FishCreate, request: Request,
                        user: CurrentUser = Depends(require_roles("fisherman", "admin"))):

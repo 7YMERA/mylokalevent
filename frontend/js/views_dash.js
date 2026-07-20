@@ -52,6 +52,7 @@ const Dash = (() => {
       admin: [['/admin','Dashboard','speedometer2'],
               ['/admin/pending-events','Pending Events','calendar-check','badgePendEvents'],
               ['/admin/pending-ads','Pending Ads','megaphone','badgePendAds'],
+              ['/admin/pending-spots','Pending Spots','geo-alt','badgePendSpots'],
               ['/admin/audit','Audit Logs','shield-check'],
               ['/admin/users','Users','people']],
     }[u.role] || [];
@@ -74,10 +75,14 @@ const Dash = (() => {
   }
   async function loadAdminBadges() {
     try {
-      const [ev, ads] = await Promise.all([
-        API.get('/admin/events/pending'), API.get('/admin/advertisements/pending')]);
+      const [ev, ads, spots] = await Promise.all([
+        API.get('/admin/events/pending'),
+        API.get('/admin/advertisements/pending'),
+        API.get('/spots/pending').catch(() => []),
+      ]);
       setBadge('badgePendEvents', ev.length);
       setBadge('badgePendAds', ads.length);
+      setBadge('badgePendSpots', spots.length);
     } catch {}
   }
 
@@ -666,6 +671,31 @@ const Dash = (() => {
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
 
+  // ---------- Pending Spots (community-suggested fishing spots) ----------
+  async function pendingSpots() {
+    const u = UI.requireRole('admin'); if (!u) return;
+    app().innerHTML = shell('<i class="bi bi-geo-alt text-primary"></i> Pending Spots', '/admin/pending-spots',
+      `<div class="card p-3">${UI.skeleton(300)}</div>`);
+    loadAdminBadges();
+    try {
+      const spots = await API.get('/spots/pending');
+      const rows = spots.map(s => `<tr>
+        <td>${esc(s.name)}<div class="small text-muted">${esc((s.description || '').slice(0, 90))}</div></td>
+        <td class="small">${esc(s.district || '')}${s.district && s.state ? ', ' : ''}${esc(s.state || '')}</td>
+        <td><a href="${esc(s.maps_url)}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-map"></i> Map</a></td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-success" onclick="Dash.approveSpot(${s.id})"><i class="bi bi-check-lg"></i> Approve</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="Dash.rejectSpot(${s.id})">Reject</button></td></tr>`).join('');
+      app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-geo-alt text-primary"></i> Pending Spots <span class="badge bg-warning">${spots.length}</span></h3>
+        <p class="text-muted">Fishing spots suggested by fishermen &amp; organizers, awaiting your review.</p>
+        <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+          <thead class="table-light"><tr><th>Spot</th><th>Location</th><th>Link</th><th>Action</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="4">${empty('No spots awaiting approval.','geo-alt')}</td></tr>`}</tbody></table></div></div>`;
+    } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
+  }
+  async function approveSpot(id){ try{ await API.post(`/spots/${id}/approve`); UI.toast('Spot approved & published','success'); pendingSpots(); }catch(e){UI.toast(e.message,'danger');} }
+  async function rejectSpot(id){ if(!confirm('Reject and remove this suggestion?'))return; try{ await API.del(`/spots/${id}`); UI.toast('Spot rejected','warning'); pendingSpots(); }catch(e){UI.toast(e.message,'danger');} }
+
   // ---------- Screen 6: Audit log viewer ----------
   async function audit() {
     const u = UI.requireRole('admin'); if (!u) return;
@@ -767,6 +797,7 @@ const Dash = (() => {
 
   return { organizer, delEvent, delAd, remindAdExpiry, readNotif, filterAds, viewAd, saveAdBanner, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
     _adPrices: {}, _campaigns: [], _auditAction: '',
-    admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
+    admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds,
+    pendingSpots, approveSpot, rejectSpot, loadAdminBadges,
     audit, loadAudit, loadAuditChips, setAuditAction, exportAudit, users, setStatus };
 })();

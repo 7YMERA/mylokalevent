@@ -663,18 +663,71 @@ const Public = (() => {
   // ---------- Screen 8: Catch of the Day (Events-style: filters + live results + ad rail) ----------
   let _catchTimer;
 
+  function availBadge(isAvail) {
+    return isAvail
+      ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Available</span>'
+      : '<span class="badge bg-secondary"><i class="bi bi-bag-check"></i> Sold</span>';
+  }
+
   function catchCard(c) {
     const img = c.image_url
       ? `<img src="${esc(c.image_url)}" class="event-thumb w-100">`
       : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-fish" style="font-size:2.5rem"></i></div>`;
-    return `<div class="col-md-4 mb-4"><div class="card card-hover h-100">
-      ${img}
+    return `<div class="col-md-4 mb-4"><div class="card card-hover h-100" role="button" onclick="Public.viewCatch(${c.id})">
+      <div class="position-relative">${img}
+        <span class="position-absolute top-0 end-0 m-2">${availBadge(c.is_available)}</span></div>
       <div class="card-body">
         <h6 class="mb-1">${esc(c.species)}</h6>
         <p class="mb-1 text-success fw-bold">${money(c.price_per_kg)}/kg</p>
-        <p class="small text-muted mb-1"><i class="bi bi-box"></i> ${c.weight_kg} kg available</p>
-        <p class="small text-muted mb-0"><i class="bi bi-geo-alt"></i> ${esc(c.location || '—')}</p>
+        <p class="small text-muted mb-1"><i class="bi bi-box"></i> ${c.weight_kg} kg</p>
+        <p class="small text-muted mb-2"><i class="bi bi-geo-alt"></i> ${esc(c.location || '—')}</p>
+        <span class="btn btn-sm btn-outline-primary w-100"><i class="bi bi-chat-dots"></i> View &amp; contact</span>
       </div></div></div>`;
+  }
+
+  // Catch detail modal — full info + a "contact the seller" section.
+  async function viewCatch(id) {
+    let c;
+    try { c = await API.get('/fish-catches/' + id); }
+    catch (e) { UI.toast(e.message, 'danger'); return; }
+    document.getElementById('catchModalMount')?.remove();
+    const contact = [];
+    if (c.seller_email) contact.push(`<a href="mailto:${esc(c.seller_email)}?subject=${encodeURIComponent('Enquiry: ' + c.species)}" class="btn btn-outline-primary btn-sm"><i class="bi bi-envelope"></i> Email seller</a>`);
+    if (c.seller_phone) contact.push(`<a href="tel:${esc(c.seller_phone)}" class="btn btn-outline-primary btn-sm"><i class="bi bi-telephone"></i> ${esc(c.seller_phone)}</a>`);
+    const contactHtml = contact.length ? contact.join(' ') : '<span class="text-muted small">No contact details provided.</span>';
+    const html = `<div class="modal fade" id="catchModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-fish text-primary"></i> ${esc(c.species)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            ${c.image_url ? `<img src="${esc(c.image_url)}" alt="" class="img-fluid rounded mb-3 w-100" style="max-height:220px;object-fit:cover">` : ''}
+            <div class="mb-2">${availBadge(c.is_available)}</div>
+            <table class="table table-sm align-middle">
+              <tbody>
+                <tr><th class="text-muted" style="width:36%">Price</th><td class="text-success fw-bold">${money(c.price_per_kg)}/kg</td></tr>
+                <tr><th class="text-muted">Weight</th><td>${c.weight_kg} kg</td></tr>
+                <tr><th class="text-muted">Location</th><td>${esc(c.location || '—')}</td></tr>
+                <tr><th class="text-muted">Catch date</th><td>${c.catch_date ? fmtDate(c.catch_date) : '—'}</td></tr>
+                <tr><th class="text-muted">Seller</th><td>${esc(c.seller_name || 'Local fisherman')}</td></tr>
+              </tbody>
+            </table>
+            <div class="card card-body bg-light">
+              <h6 class="fw-bold small mb-2"><i class="bi bi-chat-dots text-primary"></i> Contact the seller</h6>
+              <div class="d-flex gap-2 flex-wrap">${contactHtml}</div>
+            </div>
+          </div>
+        </div>
+      </div></div>`;
+    const mount = document.createElement('div');
+    mount.id = 'catchModalMount';
+    mount.innerHTML = html;
+    document.body.appendChild(mount);
+    const el = document.getElementById('catchModal');
+    el.addEventListener('hidden.bs.modal', () => mount.remove());
+    new bootstrap.Modal(el).show();
   }
 
   async function catches(params) {
@@ -692,9 +745,13 @@ const Public = (() => {
           <div class="mb-2"><label class="form-label small">Location</label>
             <input id="cloc" class="form-control form-control-sm" value="${esc(f.location)}"
               placeholder="e.g. Kemaman" oninput="Public.debouncedCatch()"></div>
-          <div class="mb-3"><label class="form-label small">Max price (RM/kg)</label>
+          <div class="mb-2"><label class="form-label small">Max price (RM/kg)</label>
             <input id="cprice" type="number" min="0" class="form-control form-control-sm" value="${esc(f.max_price)}"
               placeholder="Any" oninput="Public.debouncedCatch()"></div>
+          <div class="mb-1"><label class="form-label small">Availability</label>
+            <select id="cavail" class="form-select form-select-sm" onchange="Public.refreshCatches(1)">
+              <option value="avail" ${f.avail !== 'all' ? 'selected' : ''}>Available only</option>
+              <option value="all" ${f.avail === 'all' ? 'selected' : ''}>Include sold</option></select></div>
         </div>
         <div id="catchSideRail" class="mt-3"></div>
       </aside>
@@ -723,6 +780,7 @@ const Public = (() => {
   function clearCatchFilters() {
     ['cq', 'cloc', 'cprice'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const s = document.getElementById('csort'); if (s) s.value = 'newest';
+    const av = document.getElementById('cavail'); if (av) av.value = 'avail';
     refreshCatches(1);
   }
 
@@ -732,6 +790,7 @@ const Public = (() => {
       species: val('cq'), location: val('cloc'), max_price: val('cprice'),
       sort: val('csort') || 'newest', page: page || 1, page_size: 12,
     };
+    if (val('cavail') === 'all') f.available_only = false;   // include sold listings
     const grid = document.getElementById('catchGrid');
     if (!grid) return;
     grid.innerHTML = spinner();
@@ -790,14 +849,87 @@ const Public = (() => {
         <div id="spotSideRail" class="mt-3"></div>
       </aside>
       <div class="col-lg-9">
-        <div class="mb-3">
-          <h3 class="mb-0"><i class="bi bi-geo-alt text-primary"></i> Fishing Spots Directory</h3>
-          <small class="text-muted" id="spotCount">Recommended kolam pancing — tap to navigate via Google Maps.</small>
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h3 class="mb-0"><i class="bi bi-geo-alt text-primary"></i> Fishing Spots Directory</h3>
+            <small class="text-muted" id="spotCount">Recommended kolam pancing — tap to navigate via Google Maps.</small>
+          </div>
+          ${canSuggestSpot()
+            ? `<button class="btn btn-primary btn-sm" onclick="Public.suggestSpot()"><i class="bi bi-plus-circle"></i> Suggest a spot</button>`
+            : (API.isAuthed() ? '' : `<a href="/login" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-circle"></i> Log in to suggest a spot</a>`)}
         </div>
         <div class="row" id="spotGrid">${spinner()}</div>
       </div></div></div>`;
     loadSideRail('spotSideRail', 3);
     refreshSpots();
+  }
+
+  // Fishermen, organizers and admins can suggest spots (admins publish instantly).
+  function canSuggestSpot() {
+    const u = API.getUser();
+    return !!u && ['fisherman', 'organizer', 'admin'].includes(u.role);
+  }
+
+  // Modal form to suggest a new fishing spot.
+  function suggestSpot() {
+    if (!canSuggestSpot()) { UI.toast('Log in as a fisherman or organizer to suggest a spot', 'warning'); return; }
+    const isAdmin = (API.getUser() || {}).role === 'admin';
+    document.getElementById('spotModalMount')?.remove();
+    const html = `<div class="modal fade" id="spotModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-geo-alt-fill text-primary"></i> Suggest a fishing spot</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form onsubmit="Public.submitSpot(event)"><div class="modal-body">
+            ${isAdmin ? '' : '<div class="alert alert-info py-2 small mb-3"><i class="bi bi-info-circle"></i> Your suggestion will be reviewed by an admin before it appears publicly.</div>'}
+            <div class="mb-2"><label class="form-label required small">Name</label>
+              <input id="spName" class="form-control" required maxlength="150" placeholder="e.g. Tasik Biru Kundang"></div>
+            <div class="mb-2"><label class="form-label small">Description</label>
+              <textarea id="spDesc" class="form-control" rows="2" placeholder="What's it like? Species, facilities…"></textarea></div>
+            <div class="row g-2 mb-2">
+              <div class="col-6"><label class="form-label small">State</label>
+                <select id="spState" class="form-select"><option value="">—</option>${STATES.map(s => `<option>${s}</option>`).join('')}</select></div>
+              <div class="col-6"><label class="form-label small">District</label>
+                <input id="spDistrict" class="form-control" placeholder="e.g. Rawang"></div>
+            </div>
+            <div class="mb-1"><label class="form-label required small">Google Maps link</label>
+              <input id="spMaps" class="form-control" required placeholder="https://maps.google.com/…">
+              <div class="form-text">Open the spot in Google Maps → Share → copy the link.</div></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> ${isAdmin ? 'Publish spot' : 'Submit for approval'}</button>
+          </div></form>
+        </div>
+      </div></div>`;
+    const mount = document.createElement('div');
+    mount.id = 'spotModalMount';
+    mount.innerHTML = html;
+    document.body.appendChild(mount);
+    const el = document.getElementById('spotModal');
+    el.addEventListener('hidden.bs.modal', () => mount.remove());
+    Public._spotModal = new bootstrap.Modal(el);
+    Public._spotModal.show();
+  }
+
+  async function submitSpot(e) {
+    e.preventDefault();
+    const maps = document.getElementById('spMaps').value.trim();
+    if (maps.length < 5) { UI.toast('Please paste a valid Google Maps link', 'warning'); return; }
+    try {
+      const res = await API.post('/spots', {
+        name: document.getElementById('spName').value.trim(),
+        description: document.getElementById('spDesc').value.trim() || null,
+        state: document.getElementById('spState').value || null,
+        district: document.getElementById('spDistrict').value.trim() || null,
+        maps_url: maps,
+      });
+      Public._spotModal?.hide();
+      UI.toast(res.pending ? 'Submitted! An admin will review it soon.' : 'Spot published!', 'success');
+      if (!res.pending) refreshSpots();   // admin's spot is live immediately
+    } catch (err) { UI.toast(err.message, 'danger'); }
   }
 
   function debouncedSpots() {
@@ -845,7 +977,7 @@ const Public = (() => {
   return { home, loadFeatured, loadTopBanner, loadAdStrip, loadFeed, sponsored, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
     toggleComments, submitComment, deleteComment,
     events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent,
-    catches, debouncedCatch, clearCatchFilters, refreshCatches,
-    spots, debouncedSpots, clearSpotFilters, refreshSpots, news,
+    catches, debouncedCatch, clearCatchFilters, refreshCatches, viewCatch,
+    spots, debouncedSpots, clearSpotFilters, refreshSpots, suggestSpot, submitSpot, news,
     _f: {}, _composerEvents: [] };
 })();
