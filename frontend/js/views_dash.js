@@ -372,21 +372,22 @@ const Dash = (() => {
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
 
+  // Purchasable placements only. The /sponsored page is a FREE showcase of every
+  // active ad (any placement), so it is not offered here as a paid option.
   const PLACEMENT_INFO = {
     top: 'Top banner — shows across the top of every page (most visible)',
-    sponsored: 'Sponsored page — featured on the dedicated Sponsored page',
-    featured: 'Featured card — appears in event listings & homepage',
+    featured: 'Featured card — your event is boosted in the homepage Featured Events',
     feed: 'Community feed post — a native sponsored post in the feed',
-    side: 'Side banner — shows in the events sidebar',
+    side: 'Side banner — shows in the events & catches sidebar',
   };
   async function newCampaign() {
     const u = UI.requireRole('organizer','admin'); if (!u) return;
-    let prices = { side: 40, feed: 50, featured: 70, sponsored: 90, top: 130 };
+    let prices = { side: 40, feed: 50, featured: 70, top: 130 };
     try { prices = (await API.get('/advertisements/pricing')).placements; } catch {}
     Dash._adPrices = prices;
     let myEvents = [];
     try { myEvents = (await API.get('/me/organizer-summary')).events || []; } catch {}
-    const opts = ['top', 'sponsored', 'featured', 'feed', 'side']
+    const opts = ['top', 'featured', 'feed', 'side']
       .map(p => `<option value="${p}" ${p === 'featured' ? 'selected' : ''}>${PLACEMENT_INFO[p]} — RM${prices[p]}</option>`).join('');
     // Only LIVE events can be promoted — sending traffic to an expired or
     // still-pending event page makes no sense.

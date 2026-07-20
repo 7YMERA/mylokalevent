@@ -95,15 +95,16 @@ const Public = (() => {
         </div></div></div>`;
   }
 
-  // Featured events. Events that an active ad campaign is promoting are boosted
+  // Featured events. Events promoted by a **featured-placement** ad are boosted
   // to the front as "Sponsored" cards (up to 3); the rest fill in as normal
-  // featured events.
+  // featured events. Only featured-placement ads count — a top/side/feed ad
+  // does NOT leak into this section.
   async function loadFeatured() {
     const box = document.getElementById('featured');
     try {
       const [evData, adData] = await Promise.all([
         API.get('/events?sort=popular&page_size=24'),
-        API.get('/advertisements?page_size=50').catch(() => ({ items: [] })),
+        API.get('/advertisements?placement=featured&page_size=50').catch(() => ({ items: [] })),
       ]);
       const events = evData.items || [];
       // event_id -> the (first) active ad promoting it
@@ -140,20 +141,12 @@ const Public = (() => {
     return ads.items[Math.floor(Math.random() * ads.items.length)];
   }
 
-  // Pick up to `n` distinct random active ads for a sidebar rail. Prefers the
-  // given placement, then tops up with any other active ads so the rail stays
-  // populated even when few side-placement ads exist.
+  // Pick up to `n` distinct random active ads OF THE GIVEN PLACEMENT for a
+  // sidebar rail. Strict: an ad only ever appears in the placement it bought —
+  // no topping up with ads from other placements. Returns [] if none.
   async function pickAds(n = 3, placement = 'side') {
     let ads = [];
     try { ads = (await API.get('/advertisements?placement=' + placement + '&page_size=20')).items || []; } catch {}
-    if (ads.length < n) {
-      try {
-        const seen = new Set(ads.map(a => a.id));
-        for (const a of (await API.get('/advertisements?page_size=30')).items || []) {
-          if (!seen.has(a.id)) { ads.push(a); seen.add(a.id); }
-        }
-      } catch {}
-    }
     for (let i = ads.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ads[i], ads[j]] = [ads[j], ads[i]]; }
     return ads.slice(0, n);
   }
@@ -197,12 +190,18 @@ const Public = (() => {
     } catch { box.innerHTML = ''; }
   }
 
-  // Featured strip (placement=featured) between featured events and the feed.
+  // Featured strip between featured events and the feed. Shows a featured-placement
+  // ad that links OUT (no promoted event) — event-promoting featured ads already
+  // appear as Sponsored cards in the Featured Events grid, so we skip them here to
+  // avoid showing the same ad twice.
   async function loadAdStrip() {
     const box = document.getElementById('adStrip');
+    if (!box) return;
     try {
-      const a = await pickAd('featured');
-      if (!a) { if (box) box.innerHTML = ''; return; }
+      const pool = ((await API.get('/advertisements?placement=featured&page_size=20')).items || [])
+        .filter(a => !a.event_id);
+      if (!pool.length) { box.innerHTML = ''; return; }
+      const a = pool[Math.floor(Math.random() * pool.length)];
       trackImpression(a.id);
       const inner = `<div class="d-block position-relative">
         <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
@@ -234,7 +233,7 @@ const Public = (() => {
   async function sponsored() {
     app().innerHTML = `<div class="container py-4">
       <h3 class="mb-1"><i class="bi bi-megaphone text-primary"></i> Sponsored</h3>
-      <p class="text-muted">Businesses and services supporting the local fishing &amp; events community.</p>
+      <p class="text-muted">Every active campaign is showcased here — a bonus for all our sponsors, whatever placement they chose.</p>
       <div class="row" id="sponsoredGrid">${spinner()}</div></div>`;
     try {
       const data = await API.get('/advertisements?page_size=50');
