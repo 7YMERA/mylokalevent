@@ -65,8 +65,12 @@ const Auth = (() => {
           <div class="mb-3"><label class="form-label required">Email</label>
             <input id="rEmail" type="email" class="form-control" required></div>
           <div class="mb-3"><label class="form-label required">Password</label>
-            <input id="rPass" type="password" class="form-control" minlength="6" required>
+            <input id="rPass" type="password" class="form-control" minlength="6" required
+              oninput="Auth.checkPasswordMatch()">
             <div class="form-text">At least 6 characters.</div></div>
+          <div class="mb-3"><label class="form-label required">Confirm Password</label>
+            <input id="rPass2" type="password" class="form-control" required oninput="Auth.checkPasswordMatch()">
+            <div class="form-text" id="rPassMatch"></div></div>
           <div class="mb-3"><label class="form-label">Phone</label>
             <input id="rPhone" class="form-control"></div>
           <div class="mb-3"><label class="form-label required">I am registering as</label>
@@ -80,8 +84,23 @@ const Auth = (() => {
         <p class="text-center small mt-3 mb-0">Already have an account? <a href="/login">Log in</a></p>
       </div></div></div></div></div>`;
   }
+  // Live feedback on whether the two password fields match.
+  function checkPasswordMatch() {
+    const p = document.getElementById('rPass').value;
+    const p2 = document.getElementById('rPass2').value;
+    const el = document.getElementById('rPassMatch');
+    if (!p2) { el.innerHTML = ''; return true; }
+    if (p === p2) { el.innerHTML = '<span class="text-success">✓ Passwords match</span>'; return true; }
+    el.innerHTML = '<span class="text-danger">Passwords do not match</span>';
+    return false;
+  }
+
   async function submitRegister(e) {
     e.preventDefault();
+    if (document.getElementById('rPass').value !== document.getElementById('rPass2').value) {
+      UI.toast('Passwords do not match', 'warning');
+      return;
+    }
     const btn = document.getElementById('rBtn'); btn.disabled = true; btn.textContent = 'Creating…';
     try {
       const user = await API.register({
@@ -359,6 +378,6 @@ const Auth = (() => {
     catch (e) { UI.toast(e.message, 'danger'); }
   }
 
-  return { login, fillLogin, submitLogin, register, submitRegister, createEvent, wizNav, submitEvent, saved,
+  return { login, fillLogin, submitLogin, register, submitRegister, checkPasswordMatch, createEvent, wizNav, submitEvent, saved,
     profile, editProfile, saveProfile, wallet, topUp, remindLow, _step: 1, _me: null };
 })();
