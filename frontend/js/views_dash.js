@@ -147,7 +147,6 @@ const Dash = (() => {
     try {
       const [d, ad] = await Promise.all([
         API.get('/me/organizer-summary'), API.get('/me/advertiser-summary')]);
-      Dash._campaigns = ad.campaigns;   // cached for the detail modal (Dash.viewAd)
 
       const eventRows = d.events.map(e => `<tr>
         <td><a href="/events/${e.id}">${esc(e.title)}</a></td>
@@ -156,32 +155,35 @@ const Dash = (() => {
         <td class="text-center">${e.view_count||0}</td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delEvent(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
 
+      // Read-only campaign summary (status + data). Editing lives on /advertiser.
       const lc = ad.campaigns.map(adLifecycle);
       const nActive = lc.filter(x => x.key === 'active').length;
       const nExpiring = lc.filter(x => x.key === 'expiring').length;
       const nExpired = lc.filter(x => x.key === 'expired').length;
+      const totalImpr = ad.campaigns.reduce((s, c) => s + (c.impressions || 0), 0);
+      const totalClicks = ad.campaigns.reduce((s, c) => s + (c.clicks || 0), 0);
+      const avgCtr = totalImpr ? ((totalClicks / totalImpr) * 100).toFixed(1) : '0';
 
-      const adRows = ad.campaigns.map((a, i) => {
+      const campaignItems = ad.campaigns.slice(0, 6).map((a, i) => {
         const L = lc[i];
-        const renewBadge = a.auto_renew
-          ? '<span class="badge bg-success"><i class="bi bi-arrow-repeat"></i> Auto-renew</span>'
-          : '<span class="badge bg-light text-muted border"><i class="bi bi-slash-circle"></i> No auto-renew</span>';
-        const expiringBadge = L.key === 'expiring'
-          ? `<div class="mt-1"><span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span></div>` : '';
-        return `<tr data-adgroup="${L.key}">
-          <td>${a.image_url ? `<img id="adThumb-${a.id}" src="${esc(a.image_url)}" width="56" class="rounded" role="button" onclick="Dash.viewAd(${a.id})">` : '<span class="text-muted">—</span>'}</td>
-          <td><a href="#" onclick="Dash.viewAd(${a.id});return false" class="fw-semibold text-decoration-none">${esc(a.title)}</a>
-            <div class="small text-muted"><span class="text-capitalize">${esc(a.placement || 'featured')}</span>${a.event_title ? ' · → ' + esc(a.event_title) : ''}</div>
-            <div class="mt-1">${renewBadge}</div></td>
-          <td>${statusBadge(a.status)}${expiringBadge}</td>
-          <td class="text-center">${a.impressions || 0}</td><td class="text-center">${a.clicks || 0}</td>
-          <td class="text-center"><b>${a.ctr || 0}%</b></td>
-          <td class="small text-nowrap">${a.end_date ? fmtDate(a.end_date) : '—'}</td>
-          <td class="text-nowrap">
-            <button class="btn btn-sm btn-outline-secondary" title="View details" onclick="Dash.viewAd(${a.id})"><i class="bi bi-eye"></i></button>
-            <button class="btn btn-sm btn-outline-primary" title="Send expiry reminder (demo)" onclick="Dash.remindAdExpiry(${a.id})"><i class="bi bi-bell"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+        const thumb = a.image_url
+          ? `<img src="${esc(a.image_url)}" class="rounded flex-shrink-0" style="width:34px;height:34px;object-fit:cover">`
+          : `<div class="rounded bg-light d-flex align-items-center justify-content-center flex-shrink-0 text-muted" style="width:34px;height:34px"><i class="bi bi-megaphone"></i></div>`;
+        const meta = [
+          `<span class="text-capitalize">${esc(a.placement || 'featured')}</span>`,
+          `${a.ctr || 0}% CTR`,
+          a.auto_renew ? '<i class="bi bi-arrow-repeat"></i> auto-renew' : null,
+          L.key === 'expiring' ? `<span class="text-warning fw-semibold">${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span>` : null,
+        ].filter(Boolean).join(' · ');
+        return `<a href="/advertiser" class="list-group-item list-group-item-action px-0 py-2 d-flex align-items-center gap-2">
+          ${thumb}
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="small fw-semibold text-truncate">${esc(a.title)}</div>
+            <div class="text-muted text-truncate" style="font-size:.72rem">${meta}</div>
+          </div>
+          ${statusBadge(a.status)}</a>`;
       }).join('');
+      const moreCount = Math.max(0, ad.campaigns.length - 6);
 
       document.getElementById('orgMain').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Organizer Dashboard</h3>
         <div class="row">
@@ -191,40 +193,41 @@ const Dash = (() => {
           ${kpi(d.total_views,'Total Views','kpi-orange','eye')}
         </div>
 
-        <!-- Events -->
-        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-          <h5 class="mb-0"><i class="bi bi-calendar-event text-primary"></i> My Events</h5>
-          <a href="/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
-        <div class="card mb-4"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-          <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Status</th><th class="text-center">Views</th><th></th></tr></thead>
-          <tbody>${eventRows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
-        </table></div></div>
-
-        <!-- Ad campaigns -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h5>
-          <div class="d-flex gap-2">
-            <a href="/advertiser" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Manage Campaigns</a>
-            <a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div></div>
-        <div class="btn-group btn-group-sm mb-2 flex-wrap" role="group" aria-label="Filter campaigns">
-          <button type="button" class="btn btn-outline-primary active" onclick="Dash.filterAds(this,'all')">All <span class="badge bg-secondary">${ad.campaigns.length}</span></button>
-          <button type="button" class="btn btn-outline-success" onclick="Dash.filterAds(this,'active')">Active <span class="badge bg-success">${nActive}</span></button>
-          <button type="button" class="btn btn-outline-warning" onclick="Dash.filterAds(this,'expiring')">Expiring soon <span class="badge bg-warning text-dark">${nExpiring}</span></button>
-          <button type="button" class="btn btn-outline-secondary" onclick="Dash.filterAds(this,'expired')">Expired <span class="badge bg-secondary">${nExpired}</span></button>
-        </div>
         <div class="row">
-          <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-            <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th>Ends</th><th></th></tr></thead>
-            <tbody id="adTableBody">${adRows || `<tr><td colspan="8">${empty('No ad campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
-          <div class="col-lg-4"><div class="card card-body"><h6>Clicks by Campaign</h6><canvas id="adChart" height="200"></canvas></div></div>
-        </div>`;
+          <!-- My Events (left) -->
+          <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+              <h5 class="mb-0"><i class="bi bi-calendar-event text-primary"></i> My Events</h5>
+              <a href="/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a></div>
+            <div class="card mb-4"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+              <thead class="table-light"><tr><th>Title</th><th>Location</th><th>Date</th><th>Status</th><th class="text-center">Views</th><th></th></tr></thead>
+              <tbody>${eventRows || `<tr><td colspan="6">${empty('You have not posted any events yet.','calendar-x')}</td></tr>`}</tbody>
+            </table></div></div>
+          </div>
 
+          <!-- Campaigns summary (right, read-only) -->
+          <div class="col-lg-4">
+            <div class="mt-3 mb-2" style="height:38px"></div>
+            <div class="card mb-4"><div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> Campaigns</h5>
+                <a href="/advertiser" class="btn btn-sm btn-primary">Manage <i class="bi bi-arrow-right"></i></a>
+              </div>
+              <div class="mb-2 d-flex flex-wrap gap-1">
+                <span class="badge bg-success">Active ${nActive}</span>
+                <span class="badge bg-warning text-dark">Expiring ${nExpiring}</span>
+                <span class="badge bg-secondary">Expired ${nExpired}</span>
+              </div>
+              <a href="/advertiser/new" class="btn btn-sm btn-outline-primary w-100 mb-2"><i class="bi bi-plus-circle"></i> Create Ad</a>
+              ${ad.campaigns.length
+                ? `<div class="list-group list-group-flush">${campaignItems}</div>
+                   ${moreCount > 0 ? `<a href="/advertiser" class="small d-block text-center mt-2">+${moreCount} more</a>` : ''}
+                   <div class="small text-muted text-center mt-2 pt-2 border-top">${totalImpr.toLocaleString()} impressions · ${totalClicks.toLocaleString()} clicks · ${avgCtr}% CTR</div>`
+                : empty('No campaigns yet.', 'megaphone')}
+            </div></div>
+          </div>
+        </div>`;
       clearCharts();
-      if (ad.campaigns.length) {
-        charts.push(new Chart(document.getElementById('adChart'), { type: 'bar',
-          data: { labels: ad.campaigns.map(c => c.title.slice(0,12)), datasets: [{ label:'Clicks', data: ad.campaigns.map(c=>c.clicks||0), backgroundColor:'#1B6CA8' }] },
-          options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} } }));
-      }
     } catch (e) { document.getElementById('orgMain').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
   async function delAd(id) {
