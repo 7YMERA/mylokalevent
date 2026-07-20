@@ -83,6 +83,9 @@ def add_events(uid, want=3):
 
 def add_ads(uid, name, want=2):
     have = count("advertisements", "advertiser_id", uid)
+    # Promote one of the org's own events so the ad click lands on an event page.
+    evs = (db.table("events").select("id").eq("organizer_id", uid)
+           .order("created_at", desc=True).limit(10).execute().data or [])
     made = 0
     while have + made < want:
         start = (now - timedelta(days=random.randint(0, 3))).date()
@@ -91,7 +94,7 @@ def add_ads(uid, name, want=2):
             "title": random.choice(AD_TITLES).format(n=name),
             "description": "Great deals for anglers this week — visit us in-store or online.",
             "image_url": f"https://picsum.photos/seed/demo-ad-{uid}-{made}/1200/300",
-            "target_url": "https://example.com/shop",
+            "event_id": random.choice(evs)["id"] if evs else None,
             "start_date": start.isoformat(), "end_date": (start + timedelta(days=6)).isoformat(),
             "amount_paid": 70.00, "status": "active",
             "clicks": random.randint(5, 90), "impressions": random.randint(300, 3000),
