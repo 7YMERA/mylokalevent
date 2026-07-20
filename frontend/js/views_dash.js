@@ -684,7 +684,7 @@ const Dash = (() => {
       </div>
       <div class="card"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">
         <thead class="table-light"><tr><th>Time</th><th>User</th><th>Action</th><th>Table</th><th>Record</th><th>IP</th></tr></thead>
-        <tbody id="auditBody">${spinner()}</tbody></table></div></div>`);
+        <tbody id="auditBody"><tr><td colspan="6" class="text-center py-4">${spinner()}</td></tr></tbody></table></div></div>`);
     // Export needs auth header — fetch as blob
     document.getElementById('aExport').onclick = Dash.exportAudit;
     loadAdminBadges();
