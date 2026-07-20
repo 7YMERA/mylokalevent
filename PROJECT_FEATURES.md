@@ -117,12 +117,13 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Emails: **event submitted (pending approval)**, **approved**, **rejected** — to the organizer
 
 ### 5.3 Advertising System (old-Roblox-inspired)
-- **4 placement types with tiered 7-day pricing:**
+- **5 placement types with tiered 7-day pricing:**
   | Placement | Where it shows | Price / 7 days |
   |---|---|---|
   | **Top banner** | Strip near the top of the homepage/pages | **RM130** |
   | **Sponsored page** | Dedicated `/sponsored` showcase page | **RM90** |
   | **Featured** | Homepage strip + listings | **RM70** |
+  | **Feed post** | Native sponsored post inside the community feed | **RM50** |
   | **Side banner** | Events page sidebar | **RM40** |
 - Ad creation form with **live price** that updates by placement; banner upload; contact details
 - **No manual dates** — runs 7 days from creation (start date shown)
@@ -130,6 +131,8 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Pay ad fee with **Stripe** or **credits**
 - **Admin approval** required before an ad goes live
 - **Placement rendering:** homepage top banner + featured strip, events-page side banner, dedicated **Sponsored page** (nav link)
+- **Sponsored featured events:** events that an active ad campaign promotes are **boosted to the front of the homepage's Featured Events** as "Sponsored" cards (up to 3); their clicks route through the ad's click endpoint so the campaign is credited (impression + click)
+- **Native sponsored feed posts** (`feed` placement): advertisers publish a **social-media-style promoted post** — headline + caption + image + "View Event" button — that's **interleaved among the real community posts** (one after every few posts, shuffled per load). Looks like an organic post but tagged "Sponsored"; the CTA redirects to the promoted event.
 - **Ads promote an event** (Roblox-style): the organizer picks which of their events an ad promotes, and **clicking the ad redirects to that event's page** (external URL kept as an optional fallback). Ad cards show "Promoting: [Event]" with a "View Event" button.
 - **Rotation:** each banner slot (top/featured/side) shows a **random active ad of that placement on every page load** (ad-network style); the Sponsored page lists them all. Only **admin-approved (active)** ads are shown.
 - **Click-through tracking** (redirect) + **impression tracking** (counted on display); CTR shown on the dashboard

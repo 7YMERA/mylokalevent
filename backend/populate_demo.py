@@ -106,6 +106,50 @@ def add_ads(uid, name, want=2):
     return made
 
 
+FEED_AD_CAPTIONS = [
+    "Wanna go fishing somewhere you'll love this weekend? Come join us at {ev} \U0001F3A3",
+    "The tide is perfect and spots are filling up fast — see you at {ev}?",
+    "Bring your rod and your buddies. {ev} is going to be a good one!",
+    "Fresh catches, good vibes, great people. Don't miss {ev} \U0001F41F",
+]
+
+
+def add_feed_ads(uid, name, want=1):
+    """Seed a native 'feed' placement ad that promotes one of the org's events,
+    so the community feed shows a sponsored post (social-media style)."""
+    have = (db.table("advertisements").select("id", count="exact")
+            .eq("advertiser_id", uid).eq("placement", "feed").execute().count or 0)
+    if have >= want:
+        return 0
+    evs = (db.table("events").select("id,title").eq("organizer_id", uid)
+           .order("created_at", desc=True).limit(5).execute().data or [])
+    if not evs:
+        return 0
+    made = 0
+    while have + made < want:
+        ev = random.choice(evs)
+        start = (now - timedelta(days=random.randint(0, 2))).date()
+        ad = db.table("advertisements").insert({
+            "advertiser_id": uid,
+            "title": name,
+            "description": random.choice(FEED_AD_CAPTIONS).format(ev=ev["title"]),
+            "image_url": f"https://picsum.photos/seed/feed-ad-{uid}-{made}/800/600",
+            "event_id": ev["id"],
+            "placement": "feed",
+            "start_date": start.isoformat(), "end_date": (start + timedelta(days=6)).isoformat(),
+            "amount_paid": 50.00, "status": "active",
+            "clicks": random.randint(3, 40), "impressions": random.randint(200, 1500),
+        }).execute().data[0]
+        db.table("payments").insert({
+            "user_id": uid, "payable_type": "advertisement", "payable_id": ad["id"],
+            "amount": 50.00, "method": "card", "status": "success",
+            "transaction_id": f"DEMO-FEEDAD-{ad['id']}",
+            "created_at": (now - timedelta(days=random.randint(1, 20))).isoformat(),
+        }).execute()
+        made += 1
+    return made
+
+
 def add_notifs(uid):
     if count("notifications", "user_id", uid) >= 3:
         return 0
@@ -126,8 +170,9 @@ def main():
             continue
         e = add_events(u["id"], want=3)
         a = add_ads(u["id"], u["name"], want=2)
+        fa = add_feed_ads(u["id"], u["name"], want=1)
         n = add_notifs(u["id"])
-        print(f"  {email}: +{e} events, +{a} ads, +{n} notifications")
+        print(f"  {email}: +{e} events, +{a} ads, +{fa} feed ads, +{n} notifications")
     print("Done.")
 
 

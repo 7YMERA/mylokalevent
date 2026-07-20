@@ -68,12 +68,58 @@ const Public = (() => {
     loadFeed();
   }
 
+  // An event card marked "Sponsored" (a paid ad is promoting it). Clicks route
+  // through the ad's click endpoint so they count toward the campaign, then
+  // redirect to the event page.
+  function sponsoredEventCard(ev, ad) {
+    const href = ad ? API.url('/advertisements/' + ad.id + '/click') : `/events/${ev.id}`;
+    const tgt = ad ? '_blank' : '_self';
+    const img = ev.banner_url
+      ? `<img src="${esc(ev.banner_url)}" class="event-thumb w-100" alt="">`
+      : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-calendar-event" style="font-size:2.5rem"></i></div>`;
+    const fee = Number(ev.entry_fee) > 0 ? money(ev.entry_fee) : '<span class="text-success fw-bold">FREE</span>';
+    return `<div class="col-md-4 mb-4"><div class="card card-hover h-100 position-relative border-warning" style="border-width:2px">
+        <span class="badge bg-warning text-dark position-absolute top-0 start-0 m-2" style="z-index:2"><i class="bi bi-megaphone-fill"></i> Sponsored</span>
+        <a href="${href}" target="${tgt}">${img}</a>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <span class="badge bg-light text-primary border"><i class="bi bi-geo-alt"></i> ${esc(ev.district)}, ${esc(ev.state)}</span>
+            ${statusBadge(ev.status)}
+          </div>
+          <h5 class="mt-2"><a href="${href}" target="${tgt}" class="text-dark">${esc(ev.title)}</a></h5>
+          <p class="text-muted small mb-2"><i class="bi bi-calendar3"></i> ${fmtDate(ev.start_date)}</p>
+          <div class="d-flex justify-content-between align-items-center">
+            <span>${fee}</span>
+            <span class="text-muted small"><i class="bi bi-eye"></i> ${ev.view_count || 0}</span>
+          </div>
+        </div></div></div>`;
+  }
+
+  // Featured events. Events that an active ad campaign is promoting are boosted
+  // to the front as "Sponsored" cards (up to 3); the rest fill in as normal
+  // featured events.
   async function loadFeatured() {
+    const box = document.getElementById('featured');
     try {
-      const data = await API.get('/events?sort=popular&page_size=6');
-      document.getElementById('featured').innerHTML = data.items.length
-        ? data.items.map(eventCard).join('') : empty('No events yet. Check back soon!', 'calendar-x');
-    } catch (e) { document.getElementById('featured').innerHTML = empty(e.message, 'exclamation-triangle'); }
+      const [evData, adData] = await Promise.all([
+        API.get('/events?sort=popular&page_size=24'),
+        API.get('/advertisements?page_size=50').catch(() => ({ items: [] })),
+      ]);
+      const events = evData.items || [];
+      // event_id -> the (first) active ad promoting it
+      const promo = {};
+      (adData.items || []).forEach(a => { if (a.event_id && !promo[a.event_id]) promo[a.event_id] = a; });
+      const sponsored = events.filter(e => promo[e.id]).slice(0, 3);
+      const sponsoredIds = new Set(sponsored.map(e => e.id));
+      const rest = events.filter(e => !sponsoredIds.has(e.id)).slice(0, 6);
+      let html = '';
+      if (sponsored.length) {
+        sponsored.forEach(e => trackImpression(promo[e.id].id));
+        html += sponsored.map(e => sponsoredEventCard(e, promo[e.id])).join('');
+      }
+      html += rest.map(eventCard).join('');
+      box.innerHTML = html || empty('No events yet. Check back soon!', 'calendar-x');
+    } catch (e) { box.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
   // Click-through link wrapper (the click endpoint records the click server-side).
@@ -266,13 +312,72 @@ const Public = (() => {
     } catch (e) { UI.toast(e.message, 'danger'); }
   }
 
+  // A native "Sponsored" post — an advertiser's feed-placement ad rendered to
+  // look like a community post (avatar + caption + image + link to the event).
+  function sponsoredFeedCard(a) {
+    const href = API.url('/advertisements/' + a.id + '/click');
+    const cta = a.event_title ? '<i class="bi bi-calendar-event"></i> View Event' : '<i class="bi bi-box-arrow-up-right"></i> Learn More';
+    return `<div class="col-md-6 col-lg-4 mb-4"><div class="card card-hover h-100 border-warning" style="border-width:2px">
+      <div class="card-body pb-2">
+        <div class="d-flex align-items-center mb-2">
+          <div class="rounded-circle text-white d-flex align-items-center justify-content-center"
+               style="width:40px;height:40px;background:linear-gradient(135deg,#1B6CA8,#2E75B6)"><i class="bi bi-megaphone-fill"></i></div>
+          <div class="ms-2">
+            <div class="fw-bold" style="line-height:1">${esc(a.title)}</div>
+            <small class="text-warning fw-bold"><i class="bi bi-megaphone"></i> Sponsored</small>
+          </div>
+        </div>
+        <p class="mb-2">${esc(a.description || '')}</p>
+      </div>
+      ${a.image_url ? `<a href="${href}" target="_blank"><img src="${esc(a.image_url)}" class="w-100" style="max-height:220px;object-fit:cover"></a>` : ''}
+      <div class="card-body pt-2">
+        ${a.event_title ? `<div class="mb-2"><span class="badge bg-primary"><i class="bi bi-megaphone"></i> ${esc(a.event_title)}</span></div>` : ''}
+        <a href="${href}" target="_blank" class="btn btn-sm btn-primary w-100">${cta}</a>
+      </div></div></div>`;
+  }
+
+  // Fisher-Yates shuffle (so sponsored posts rotate on each load).
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Weave sponsored post cards in among the real feed cards (one after every
+  // few posts, social-media style). Falls back to showing one up top if the
+  // feed is too short to reach an insertion point.
+  function interleaveSponsored(postCards, ads) {
+    if (!ads.length) return postCards.join('');
+    const out = [];
+    let ai = 0;
+    postCards.forEach((c, i) => {
+      out.push(c);
+      if ((i + 1) % 3 === 0 && ai < ads.length) {
+        trackImpression(ads[ai].id);
+        out.push(sponsoredFeedCard(ads[ai++]));
+      }
+    });
+    if (ai === 0) { trackImpression(ads[0].id); out.unshift(sponsoredFeedCard(ads[0])); }
+    return out.join('');
+  }
+
   async function loadFeed() {
+    const box = document.getElementById('feed');
     try {
-      const data = await API.get('/posts?page_size=12');
-      document.getElementById('feed').innerHTML = data.items.length
-        ? data.items.map(feedCard).join('')
-        : empty('No posts yet. Be the first to share your catch!', 'chat-square-heart');
-    } catch (e) { document.getElementById('feed').innerHTML = empty(e.message, 'exclamation-triangle'); }
+      const [data, adRes] = await Promise.all([
+        API.get('/posts?page_size=12'),
+        API.get('/advertisements?placement=feed&page_size=20').catch(() => ({ items: [] })),
+      ]);
+      const posts = data.items || [];
+      const feedAds = shuffle((adRes.items || []).slice());
+      if (!posts.length && !feedAds.length) {
+        box.innerHTML = empty('No posts yet. Be the first to share your catch!', 'chat-square-heart');
+        return;
+      }
+      box.innerHTML = interleaveSponsored(posts.map(feedCard), feedAds);
+    } catch (e) { box.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
   async function toggleComposer() {
