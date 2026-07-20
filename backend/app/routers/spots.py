@@ -30,6 +30,16 @@ async def list_spots(q: str | None = None, state: str | None = None, district: s
     return query.order("name").execute().data
 
 
+# Admin approval queue — MUST be declared before "/{spot_id}" so the literal
+# path wins over the int path param.
+@router.get("/pending")
+async def pending_spots(_: CurrentUser = Depends(require_roles("admin"))):
+    return (
+        get_db().table("fishing_spots").select("*")
+        .eq("is_active", False).order("created_at", desc=True).execute().data
+    )
+
+
 @router.get("/{spot_id}")
 async def get_spot(spot_id: int):
     res = get_db().table("fishing_spots").select("*").eq("id", spot_id).execute()
@@ -40,11 +50,31 @@ async def get_spot(spot_id: int):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_spot(payload: SpotCreate, request: Request,
-                      user: CurrentUser = Depends(require_roles("admin"))):
-    created = get_db().table("fishing_spots").insert(payload.model_dump()).execute().data[0]
+                      user: CurrentUser = Depends(require_roles("fisherman", "organizer", "admin"))):
+    """Anyone (fisherman / organizer / admin) may suggest a spot. Admins publish
+    immediately; everyone else's submission is held for admin approval
+    (is_active=False) so it isn't shown publicly until reviewed."""
+    db = get_db()
+    data = payload.model_dump()
+    data["is_active"] = (user.role == "admin")
+    created = db.table("fishing_spots").insert(data).execute().data[0]
     write_audit_log(user_id=user.id, action="CREATE", table_name="fishing_spots", record_id=created["id"],
-                    new_value={"name": created["name"]}, ip_address=client_ip(request), user_agent=user_agent(request))
-    return created
+                    new_value={"name": created["name"], "is_active": data["is_active"]},
+                    ip_address=client_ip(request), user_agent=user_agent(request))
+    return {"spot": created, "pending": not data["is_active"]}
+
+
+@router.post("/{spot_id}/approve")
+async def approve_spot(spot_id: int, request: Request,
+                       admin: CurrentUser = Depends(require_roles("admin"))):
+    db = get_db()
+    res = db.table("fishing_spots").select("*").eq("id", spot_id).execute()
+    if not res.data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Spot not found")
+    db.table("fishing_spots").update({"is_active": True}).eq("id", spot_id).execute()
+    write_audit_log(user_id=admin.id, action="APPROVE", table_name="fishing_spots", record_id=spot_id,
+                    new_value={"is_active": True}, ip_address=client_ip(request), user_agent=user_agent(request))
+    return {"message": "Spot approved and published"}
 
 
 @router.put("/{spot_id}")

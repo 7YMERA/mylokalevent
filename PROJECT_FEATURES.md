@@ -161,8 +161,10 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Composer for logged-in users; location tags link to filtered events
 
 ### 5.6 Fishery Marketplace
-- **Catch of the Day** board (Events-style layout): filter **sidebar** (species, location, max price/kg, sort by newest / price low→high / high→low) with **live in-place filtering**, result count, and pagination; plus a **Sponsored ad rail** in the sidebar
+- **Catch of the Day** board (Events-style layout): filter **sidebar** (species, location, max price/kg, **availability: available-only / include-sold**, sort by newest / price low→high / high→low) with **live in-place filtering**, result count, and pagination; plus a **Sponsored ad rail**
+- **Catch cards** show an **Available / Sold** badge and are **clickable → a detail modal** with full info and a **"Contact the seller"** section (email / phone)
 - **Fishing Spots Directory** (*kolam pancing*, Events-style layout): filter **sidebar** (keyword/name, state, district) with **live in-place filtering** and a result count, a **Sponsored ad rail**, and a **"Get Directions"** Google Maps link per spot (no paid Maps API)
+- **Community-suggested spots:** fishermen & organizers can **"Suggest a spot"** (name, description, state/district, Google Maps link); submissions are **held for admin approval** (hidden until approved), while admins publish instantly. Admin **Pending Spots** queue (sidebar page + live count badge) with approve / reject
 
 ### 5.7 Payments
 - **Stripe Checkout** (hosted, MYR): event fees, ad fees, credit top-ups
