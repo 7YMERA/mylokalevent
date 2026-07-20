@@ -21,7 +21,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Stray briefs / docs dropped in the repo root (kept local, not committed).
-# Note: the leading slash anchors to root, so presentation/*.docx stays tracked.
+# Stray briefs / office docs dropped in the repo root (kept local, not committed).
+# Note: the leading slash anchors to root, so presentation/* stays tracked.
 /*.docx
+/*.doc
+/*.pptx
+/*.ppt
 /*.pdf
