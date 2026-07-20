@@ -105,6 +105,9 @@ main h4, main h3 { font-weight: 600; }
 .badge-live, .badge-approved, .badge-active { background: var(--accent); }
 .badge-rejected { background: var(--danger); }
 .badge-expired  { background: #7c8b99; }
+/* date-aware event states (derived from start/end dates, not the DB status) */
+.badge-upcoming { background: var(--secondary); }
+.badge-soon     { background: #FD7E14; }
 
 /* ---------- Forms ---------- */
 .form-control, .form-select { border-radius: var(--radius-sm); border-color: #d7e3ee; }

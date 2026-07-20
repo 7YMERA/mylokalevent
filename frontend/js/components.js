@@ -52,6 +52,25 @@ const UI = (() => {
     return `<span class="badge ${map[status] || 'bg-secondary'} text-capitalize">${esc(status)}</span>`;
   }
 
+  // Date-aware badge for EVENTS. The DB `status` is a lifecycle state ('live' =
+  // approved & published), so an approved event may still be upcoming, happening
+  // now, or already over — reflect that instead of a flat "Live".
+  function eventStatusBadge(ev) {
+    if (!ev || ev.status !== 'live') return statusBadge(ev ? ev.status : '');   // pending / expired / rejected
+    const now = Date.now();
+    const start = ev.start_date ? new Date(ev.start_date).getTime() : NaN;
+    const end = ev.end_date ? new Date(ev.end_date).getTime() : NaN;
+    if (!isNaN(start) && now < start) {
+      const days = Math.ceil((start - now) / 86400000);
+      return days <= 3
+        ? `<span class="badge badge-soon"><i class="bi bi-hourglass-split"></i> Starting soon</span>`
+        : `<span class="badge badge-upcoming"><i class="bi bi-calendar-event"></i> Upcoming</span>`;
+    }
+    if (!isNaN(end) && now > end)
+      return `<span class="badge badge-expired"><i class="bi bi-check2-circle"></i> Ended</span>`;
+    return `<span class="badge badge-live"><i class="bi bi-broadcast"></i> Live now</span>`;
+  }
+
   function eventCard(ev) {
     const img = ev.banner_url
       ? `<img src="${esc(ev.banner_url)}" class="event-thumb w-100" alt="">`
@@ -62,7 +81,7 @@ const UI = (() => {
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <span class="badge bg-light text-primary border"><i class="bi bi-geo-alt"></i> ${esc(ev.district)}, ${esc(ev.state)}</span>
-            ${statusBadge(ev.status)}
+            ${eventStatusBadge(ev)}
           </div>
           <h5 class="mt-2"><a href="/events/${ev.id}" class="text-dark">${esc(ev.title)}</a></h5>
           <p class="text-muted small mb-2"><i class="bi bi-calendar3"></i> ${fmtDate(ev.start_date)}</p>
@@ -210,6 +229,6 @@ const UI = (() => {
     return user;
   }
 
-  return { app, toast, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventCard,
+  return { app, toast, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventStatusBadge, eventCard,
     STATES, phoneField, fullPhone, splitPhone, renderNavbar, doLogout, requireRole, uploader, handleUpload, skeleton, skeletonCards, skeletonKpis };
 })();

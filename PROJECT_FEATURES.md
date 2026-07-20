@@ -110,6 +110,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 
 ### 5.2 Events (core business entity)
 - **Full CRUD** for events (create, read, update, delete)
+- **Date-aware status badge:** an approved event shows **Upcoming** / **Starting soon** (≤3 days) / **Live now** / **Ended** based on its start & end dates — not a flat "Live" (the DB `status` is the approval lifecycle; the badge reflects the actual timeline)
 - **Multi-step submission wizard** (Basic info → Location → Schedule & fees → Banner & payment)
 - **RM10 posting fee** — pay with **Stripe** or **credits**
 - **Approval workflow:** submitted → pending → admin approves (→ live) or rejects (with reason) → auto-archives after end date
