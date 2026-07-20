@@ -28,3 +28,8 @@ Thumbs.db
 /*.pptx
 /*.ppt
 /*.pdf
+
+# Local-only assets — kept on disk, NOT committed (report screenshots, archives, scratch)
+/MyLokalEvent_Screenshots/
+/*.zip
+/_to_delete/
