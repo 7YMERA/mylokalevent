@@ -175,10 +175,11 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - **Credits** as an alternative instant payment method
 - Invoice email on successful payment
 
-### 5.8 Email (SendGrid) + smart demo routing
-- Transactional emails: welcome, event submitted/approved/rejected, payment invoice, ad approved/rejected, ad expiring/auto-renewed/stopped, new like, new comment, low-credit alert
-- **Demo email routing:** emails addressed to **fake seeded accounts** (`@demo.mylokalevent.my`, `admin@…`) are **redirected to a demo inbox** (`muhammad_22001874@utp.edu.my`) with a "demo redirect" banner, so they're visible during a demo. **Real registered users (e.g. the lecturer) receive emails at their own address** — a true real-world implementation.
-- **Demo trigger buttons** so reminders can be shown live without waiting: 🔔 "send expiry reminder" per campaign, and "send low-balance alert" on the wallet.
+### 5.8 Notifications + email
+- **In-app notifications** are the primary, reliable signal — a notifications feed on the dashboard (event/ad/spot approved, etc.). They never depend on external email delivery.
+- **Email (best-effort)** via a provider **fallback chain**: **SMTP → Brevo → Resend** (first configured wins; next tried only if one fails). SMTP (Gmail App Password) delivers to the inbox; Brevo/Resend are HTTP fallbacks for hosts that block SMTP. *(SendGrid was dropped — it accepted mail but silently never delivered from a Gmail sender due to DMARC.)*
+- **Demo email routing:** emails to **fake seeded accounts** (`@demo.mylokalevent.my`, `admin@…`) are **redirected to a demo inbox** with a "demo redirect" banner; real registered users get their own email.
+- **Demo trigger buttons** raise reminders live as **in-app notifications** (+ best-effort email): 🔔 "Notify me: expiring soon" on a campaign (in the detail modal), and "Notify me: low balance" on the wallet.
 
 ### 5.9 Weather
 - **OpenWeatherMap** 5-day forecast injected into event detail pages

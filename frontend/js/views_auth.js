@@ -357,7 +357,7 @@ const Auth = (() => {
             <div class="form-text">Paid securely via Stripe (test card 4242 4242 4242 4242).</div>
           </div>
           <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="Auth.remindLow()">
-            <i class="bi bi-bell"></i> Send low-balance alert (demo)</button>
+            <i class="bi bi-bell"></i> Notify me: low balance (demo)</button>
         </div>
         <div class="col-lg-8">
           <h5 class="mb-3"><i class="bi bi-clock-history text-primary"></i> Transaction History</h5>
@@ -381,7 +381,7 @@ const Auth = (() => {
   }
 
   async function remindLow() {
-    try { await API.post('/me/wallet/remind-low'); UI.toast('Low-balance alert email sent', 'success'); }
+    try { await API.post('/me/wallet/remind-low'); UI.toast('Low-balance alert added to notifications', 'success'); }
     catch (e) { UI.toast(e.message, 'danger'); }
   }
 

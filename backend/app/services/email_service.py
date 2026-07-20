@@ -31,9 +31,12 @@ def send_email(to_email: str, subject: str, html: str) -> bool:
          sent by that provider and passes SPF/DKIM/DMARC).
       2. Brevo (HTTP API) — fallback for hosts that block outbound SMTP.
       3. Resend (HTTP API) — another HTTP fallback.
-      4. SendGrid (HTTP API) — last (note: "from" a @gmail address fails DMARC and
-         often gets junked; kept only for backwards compatibility).
-      5. mock (print to console) if nothing is configured, so the app runs offline.
+      4. mock (print to console) if nothing is configured, so the app runs offline.
+
+    (SendGrid was dropped: it returns 202 "accepted" but silently drops mail sent
+    "from" a @gmail address — DMARC fail — so it never actually delivered.)
+    In-app notifications (app.notify) are the reliable user-facing signal and do
+    not depend on any of this.
     """
     recipient, note = _resolve_recipient(to_email)
     html = note + html
@@ -49,8 +52,6 @@ def send_email(to_email: str, subject: str, html: str) -> bool:
         chain.append(("brevo", _send_brevo))
     if settings.resend_api_key:
         chain.append(("resend", _send_resend))
-    if settings.sendgrid_api_key:
-        chain.append(("sendgrid", _send_sendgrid))
 
     if not chain:
         print(f"[email:mock] no provider configured — to={recipient} | {subject}")
@@ -89,24 +90,6 @@ def _send_smtp(to_email: str, subject: str, html: str) -> bool:
         return True
     except Exception as exc:  # pragma: no cover
         print(f"[email:smtp] send failed: {exc}")
-        return False
-
-
-def _send_sendgrid(to_email: str, subject: str, html: str) -> bool:
-    try:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Content, Email, Mail, To
-
-        message = Mail(
-            from_email=Email(settings.sendgrid_from_email, settings.sendgrid_from_name),
-            to_emails=To(to_email),
-            subject=subject,
-            html_content=Content("text/html", html),
-        )
-        resp = SendGridAPIClient(settings.sendgrid_api_key).send(message)
-        return 200 <= resp.status_code < 300
-    except Exception as exc:  # pragma: no cover
-        print(f"[email:sendgrid] send failed: {exc}")
         return False
 
 

@@ -241,7 +241,7 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
   async function remindAdExpiry(id) {
-    try { await API.post(`/advertisements/${id}/remind-expiry`); UI.toast('Expiry reminder email sent','success'); }
+    try { await API.post(`/advertisements/${id}/remind-expiry`); UI.toast('Expiry reminder added to notifications','success'); }
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
@@ -287,6 +287,8 @@ const Dash = (() => {
                     <tr><th class="text-muted">Performance</th><td>${a.impressions || 0} impressions · ${a.clicks || 0} clicks · <b>${a.ctr || 0}% CTR</b></td></tr>
                   </tbody>
                 </table>
+                <button class="btn btn-sm btn-outline-primary mt-2" onclick="Dash.remindAdExpiry(${a.id})">
+                  <i class="bi bi-bell"></i> Notify me: expiring soon (demo)</button>
               </div>
             </div>
           </div>

@@ -159,9 +159,12 @@ async def delete_ad(ad_id: int, request: Request, user: CurrentUser = Depends(ge
 
 @router.post("/{ad_id}/remind-expiry")
 async def remind_expiry(ad_id: int, user: CurrentUser = Depends(get_current_user)):
-    """Demo helper: send the 'ad expiring soon' email now (instead of waiting for
-    the scheduled reminder). Owner or admin only."""
+    """Demo helper: raise the 'ad expiring soon' reminder now (instead of waiting
+    for the scheduled job). Creates an in-app notification (the reliable signal)
+    and also best-effort emails. Owner or admin only."""
     from datetime import date as _date
+
+    from app.notify import notify
 
     db = get_db()
     res = db.table("advertisements").select("*").eq("id", ad_id).execute()
@@ -171,16 +174,19 @@ async def remind_expiry(ad_id: int, user: CurrentUser = Depends(get_current_user
     if user.role != "admin" and ad["advertiser_id"] != int(user.id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your ad")
 
-    owner = db.table("users").select("email").eq("id", ad["advertiser_id"]).execute().data
-    if not owner:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Owner not found")
     try:
-        days_left = (_date.fromisoformat(ad["end_date"]) - _date.today()).days
+        days_left = max((_date.fromisoformat(ad["end_date"]) - _date.today()).days, 0)
     except Exception:
         days_left = 0
-    send_ad_expiring(owner[0]["email"], ad["title"], max(days_left, 0),
-                     bool(ad.get("auto_renew")), float(ad.get("amount_paid") or 0))
-    return {"message": "Expiry reminder sent"}
+    tail = " Auto-renew is on." if ad.get("auto_renew") else " Renew it from your dashboard to keep it live."
+    notify(ad["advertiser_id"], "Ad expiring soon",
+           f"Your campaign '{ad['title']}' expires in {days_left} day(s)." + tail)
+
+    owner = db.table("users").select("email").eq("id", ad["advertiser_id"]).execute().data
+    if owner:  # best-effort email (only if an email provider is configured)
+        send_ad_expiring(owner[0]["email"], ad["title"], days_left,
+                         bool(ad.get("auto_renew")), float(ad.get("amount_paid") or 0))
+    return {"message": "Expiry reminder added to notifications"}
 
 
 @router.get("/{ad_id}/click")
