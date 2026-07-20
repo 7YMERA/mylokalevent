@@ -179,14 +179,22 @@ AD_DATA = [
 ]
 
 
-def make_ads(advertisers):
+def make_ads(advertisers, events):
+    # Each ad promotes one of its advertiser's own events (falls back to any
+    # event) so clicking it redirects to that event's page — no placeholder URL.
+    by_owner = {}
+    for ev in events:
+        by_owner.setdefault(ev["organizer_id"], []).append(ev["id"])
+    all_event_ids = [ev["id"] for ev in events]
     rows = []
     for i, (title, img) in enumerate(AD_DATA):
+        adv = random.choice(advertisers)
+        owned = by_owner.get(adv) or all_event_ids
         start = (now - timedelta(days=random.randint(0, 3))).date()
         rows.append({
-            "advertiser_id": random.choice(advertisers),
+            "advertiser_id": adv,
             "title": title, "image_url": img,
-            "target_url": "https://example.com/shop",
+            "event_id": random.choice(owned) if owned else None,
             "start_date": start.isoformat(), "end_date": (start + timedelta(days=6)).isoformat(),
             "amount_paid": 70.00, "status": "active",
             "clicks": random.randint(3, 120), "impressions": random.randint(200, 4000),
@@ -313,7 +321,7 @@ def main():
     load_categories()
     organizers, advertisers, fishermen = make_users()
     events = make_events(organizers)
-    ads = make_ads(advertisers)
+    ads = make_ads(advertisers, events)
     make_payments_for(events, ads)
     make_catches(fishermen)
     make_news(organizers)
