@@ -153,10 +153,12 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Powers **ad auto-renew**
 - **Low-balance reminder email** (with a demo trigger button)
 
-### 5.5 Community Feed (social layer)
+### 5.5 Community (social hub)
+- **Dedicated `/community` page** (its own nav item): the full feed with a **filter sidebar** (by state), composer, **pagination**, and a Sponsored ad rail. The homepage shows a compact **"From the Community"** preview that links into it.
 - **Posts:** share activities/catches with caption, **uploaded photo**, **location tag** (state/district), and **"joining this event"** tag (cascades — pick a state to filter the event list)
 - **Likes** (emails the post author)
 - **Comments** (inline expandable panel, with author avatars, delete own; emails the post author)
+- **Native sponsored posts** (feed-placement ads) interleaved among the real posts
 - Post author's **profile picture** shown on each card
 - Composer for logged-in users; location tags link to filtered events
 

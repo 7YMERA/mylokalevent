@@ -28,6 +28,7 @@ window.navigate = navigate;
       case '/events':           return Public.events(params);
       case '/catches':          return Public.catches();
       case '/spots':            return Public.spots();
+      case '/community':        return Public.community(params);
       case '/sponsored':        return Public.sponsored();
       case '/news':             return Public.news();
       case '/login':            return Auth.login();

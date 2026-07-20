@@ -27,7 +27,7 @@ const Public = (() => {
 
   // ---------- Screen 1: Homepage ----------
   async function home() {
-    const user = API.getUser();
+    _reloadFeed = () => loadFeed(6);
     app().innerHTML = `
       <section class="hero">
         <div class="container text-center">
@@ -51,21 +51,21 @@ const Public = (() => {
         <!-- Sponsored strip -->
         <div id="adStrip" class="mb-2"></div>
 
-        <!-- Community feed -->
+        <!-- Community preview -->
         <div class="d-flex justify-content-between align-items-center mb-1 mt-4">
-          <h4 class="mb-0"><i class="bi bi-people text-primary"></i> Community Feed</h4>
-          ${user
-            ? `<button class="btn btn-sm btn-primary" onclick="Public.toggleComposer()"><i class="bi bi-plus-circle"></i> Share a post</button>`
-            : `<a href="/login" class="btn btn-sm btn-outline-primary">Log in to share</a>`}
+          <h4 class="mb-0"><i class="bi bi-people text-primary"></i> From the Community</h4>
+          <a href="/community" class="btn btn-sm btn-outline-primary">Open Community <i class="bi bi-arrow-right"></i></a>
         </div>
         <p class="text-muted small mb-3">What anglers are sharing — catches, activities, and events they're joining.</p>
-        <div id="composer" class="mb-3"></div>
         <div class="row" id="feed">${spinner()}</div>
+        <div class="text-center mt-1 mb-2">
+          <a href="/community" class="btn btn-outline-primary btn-sm">Join the conversation in Community <i class="bi bi-arrow-right"></i></a>
+        </div>
       </div>`;
     loadTopBanner();
     loadFeatured();
     loadAdStrip();
-    loadFeed();
+    loadFeed(6);
   }
 
   // An event card marked "Sponsored" (a paid ad is promoting it). Clicks route
@@ -403,11 +403,18 @@ const Public = (() => {
     return out.join('');
   }
 
-  async function loadFeed() {
+  // Which loader to re-run after a post/delete — set by home() (preview) and
+  // community() (full page) so the right feed refreshes.
+  let _reloadFeed = null;
+  let _communityPage = 1;
+
+  // Homepage preview feed (a taste of the Community hub).
+  async function loadFeed(limit = 12) {
     const box = document.getElementById('feed');
+    if (!box) return;
     try {
       const [data, adRes] = await Promise.all([
-        API.get('/posts?page_size=12'),
+        API.get('/posts?page_size=' + limit),
         API.get('/advertisements?placement=feed&page_size=20').catch(() => ({ items: [] })),
       ]);
       const posts = data.items || [];
@@ -417,6 +424,78 @@ const Public = (() => {
         return;
       }
       box.innerHTML = interleaveSponsored(posts.map(feedCard), feedAds);
+    } catch (e) { box.innerHTML = empty(e.message, 'exclamation-triangle'); }
+  }
+
+  // ---------- Community hub (dedicated page for posts) ----------
+  async function community(params) {
+    const f = Object.assign({ state: '' }, params);
+    _reloadFeed = () => refreshCommunity(_communityPage);
+    const user = API.getUser();
+    app().innerHTML = `<div class="container py-4"><div class="row">
+      <aside class="col-lg-3 mb-4">
+        <div class="card card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+            <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="Public.clearCommunityFilters()">Clear</button>
+          </div>
+          <div class="mb-1"><label class="form-label small">State</label>
+            <select id="commState" class="form-select form-select-sm" onchange="Public.refreshCommunity(1)"><option value="">All Malaysia</option>
+              ${STATES.map(s => `<option ${s === f.state ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+        </div>
+        <div id="communitySideRail" class="mt-3"></div>
+      </aside>
+      <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div><h3 class="mb-0"><i class="bi bi-people text-primary"></i> Community</h3>
+            <small class="text-muted" id="commCount"></small></div>
+          ${user
+            ? `<button class="btn btn-primary btn-sm" onclick="Public.toggleComposer()"><i class="bi bi-plus-circle"></i> Share a post</button>`
+            : `<a href="/login" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-in-right"></i> Log in to share</a>`}
+        </div>
+        <p class="text-muted small mb-3">What anglers are sharing — catches, activities, and events they're joining.</p>
+        <div id="composer" class="mb-3"></div>
+        <div class="row" id="feed">${spinner()}</div>
+        <nav id="commPager" class="mt-3"></nav>
+      </div></div></div>`;
+    loadSideRail('communitySideRail', 3);
+    refreshCommunity(f.page || 1);
+  }
+
+  function clearCommunityFilters() {
+    const s = document.getElementById('commState'); if (s) s.value = '';
+    refreshCommunity(1);
+  }
+
+  async function refreshCommunity(page) {
+    _communityPage = page || 1;
+    const box = document.getElementById('feed');
+    if (!box) return;
+    box.innerHTML = spinner();
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const f = { state: val('commState'), page: _communityPage, page_size: 12 };
+    try {
+      const [data, adRes] = await Promise.all([
+        API.get('/posts' + API.qs(f)),
+        API.get('/advertisements?placement=feed&page_size=20').catch(() => ({ items: [] })),
+      ]);
+      const posts = data.items || [];
+      const feedAds = shuffle((adRes.items || []).slice());
+      box.innerHTML = (posts.length || feedAds.length)
+        ? interleaveSponsored(posts.map(feedCard), feedAds)
+        : empty('No posts here yet — be the first to share!', 'chat-square-heart');
+      const cnt = document.getElementById('commCount');
+      if (cnt) cnt.textContent = data.total ? `${data.total} post${data.total > 1 ? 's' : ''}` : '';
+      const pager = document.getElementById('commPager');
+      if (pager) {
+        if (data.pages > 1) {
+          let h = '<ul class="pagination justify-content-center">';
+          for (let p = 1; p <= data.pages; p++)
+            h += `<li class="page-item ${p === data.page ? 'active' : ''}"><a class="page-link" href="#" onclick="Public.refreshCommunity(${p});return false">${p}</a></li>`;
+          pager.innerHTML = h + '</ul>';
+        } else { pager.innerHTML = ''; }
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) { box.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
@@ -475,7 +554,7 @@ const Public = (() => {
       });
       UI.toast('Posted to the community feed!', 'success');
       document.getElementById('composer').innerHTML = '';
-      loadFeed();
+      (_reloadFeed || loadFeed)();
     } catch (e) { UI.toast(e.message, 'danger'); }
   }
 
@@ -490,7 +569,7 @@ const Public = (() => {
 
   async function deletePost(id) {
     if (!confirm('Delete this post?')) return;
-    try { await API.del(`/posts/${id}`); UI.toast('Post deleted', 'success'); loadFeed(); }
+    try { await API.del(`/posts/${id}`); UI.toast('Post deleted', 'success'); (_reloadFeed || loadFeed)(); }
     catch (e) { UI.toast(e.message, 'danger'); }
   }
 
@@ -976,6 +1055,7 @@ const Public = (() => {
 
   return { home, loadFeatured, loadTopBanner, loadAdStrip, loadFeed, sponsored, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
     toggleComments, submitComment, deleteComment,
+    community, refreshCommunity, clearCommunityFilters,
     events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent,
     catches, debouncedCatch, clearCatchFilters, refreshCatches, viewCatch,
     spots, debouncedSpots, clearSpotFilters, refreshSpots, suggestSpot, submitSpot, news,
