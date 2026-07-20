@@ -72,7 +72,7 @@ const Auth = (() => {
             <input id="rPass2" type="password" class="form-control" required oninput="Auth.checkPasswordMatch()">
             <div class="form-text" id="rPassMatch"></div></div>
           <div class="mb-3"><label class="form-label">Phone</label>
-            <input id="rPhone" class="form-control"></div>
+            ${UI.phoneField('rCode', 'rPhone')}</div>
           <div class="mb-3"><label class="form-label required">I am registering as</label>
             <select id="rRole" class="form-select">
               <option value="user">General User — browse &amp; save events</option>
@@ -105,7 +105,7 @@ const Auth = (() => {
     try {
       const user = await API.register({
         name: document.getElementById('rName').value, email: document.getElementById('rEmail').value,
-        password: document.getElementById('rPass').value, phone: document.getElementById('rPhone').value || null,
+        password: document.getElementById('rPass').value, phone: UI.fullPhone('rCode', 'rPhone'),
         role: document.getElementById('rRole').value,
       });
       UI.renderNavbar(); UI.toast('Account created!', 'success');
@@ -262,7 +262,7 @@ const Auth = (() => {
         <div class="col-md-4"><label class="form-label small">Name</label>
           <input id="pfName" class="form-control" value="${esc(me.name)}"></div>
         <div class="col-md-4"><label class="form-label small">Phone</label>
-          <input id="pfPhone" class="form-control" value="${esc(me.phone || '')}"></div>
+          ${UI.phoneField('pfCode', 'pfPhone', ...UI.splitPhone(me.phone))}</div>
       </div>
       <div class="mt-3 text-end">
         <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('profileEdit').innerHTML=''">Cancel</button>
@@ -274,7 +274,7 @@ const Auth = (() => {
     try {
       await API.put('/me/profile', {
         name: document.getElementById('pfName').value || null,
-        phone: document.getElementById('pfPhone').value || null,
+        phone: UI.fullPhone('pfCode', 'pfPhone'),
         profile_image: document.getElementById('pfImage').value || null,
       });
       await API.syncUser();
