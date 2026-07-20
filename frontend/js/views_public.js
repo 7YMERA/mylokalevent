@@ -1,6 +1,6 @@
 /* Public-facing views: home, events, event detail, spots, catches, news. */
 const Public = (() => {
-  const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventCard, STATES } = UI;
+  const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventStatusBadge, eventCard, STATES } = UI;
 
   // Map an OpenWeatherMap icon code (or condition) to a Bootstrap Icon —
   // reliable and on-theme, unlike OWM's image CDN (often blocked/unreachable).
@@ -84,7 +84,7 @@ const Public = (() => {
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
             <span class="badge bg-light text-primary border"><i class="bi bi-geo-alt"></i> ${esc(ev.district)}, ${esc(ev.state)}</span>
-            ${statusBadge(ev.status)}
+            ${eventStatusBadge(ev)}
           </div>
           <h5 class="mt-2"><a href="${href}" target="${tgt}" class="text-dark">${esc(ev.title)}</a></h5>
           <p class="text-muted small mb-2"><i class="bi bi-calendar3"></i> ${fmtDate(ev.start_date)}</p>
@@ -607,7 +607,7 @@ const Public = (() => {
           : `<div class="bg-white rounded my-3 d-flex align-items-center justify-content-center text-primary" style="height:200px"><i class="bi bi-calendar-event" style="font-size:3rem"></i></div>`}
         <div class="row">
           <div class="col-lg-8">
-            <div class="d-flex gap-2 align-items-center mb-2">${statusBadge(ev.status)}
+            <div class="d-flex gap-2 align-items-center mb-2">${eventStatusBadge(ev)}
               <span class="badge bg-light text-primary border"><i class="bi bi-geo-alt"></i> ${esc(ev.district)}, ${esc(ev.state)}</span></div>
             <h2>${esc(ev.title)}</h2>
             <p class="text-muted">${esc(ev.description || 'No description provided.')}</p>

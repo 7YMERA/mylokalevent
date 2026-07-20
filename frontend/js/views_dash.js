@@ -1,6 +1,6 @@
 /* Role dashboards: organizer, advertiser, fisherman, admin, audit, users. */
 const Dash = (() => {
-  const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge } = UI;
+  const { app, spinner, empty, esc, money, fmtDate, fmtDateTime, statusBadge, eventStatusBadge } = UI;
   let charts = [];
   function clearCharts() { charts.forEach(c => c.destroy()); charts = []; }
 
@@ -151,7 +151,7 @@ const Dash = (() => {
       const eventRows = d.events.map(e => `<tr>
         <td><a href="/events/${e.id}">${esc(e.title)}</a></td>
         <td>${esc(e.district)}, ${esc(e.state)}</td>
-        <td>${fmtDate(e.start_date)}</td><td>${statusBadge(e.status)}</td>
+        <td>${fmtDate(e.start_date)}</td><td>${eventStatusBadge(e)}</td>
         <td class="text-center">${e.view_count||0}</td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="Dash.delEvent(${e.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('');
 
