@@ -131,7 +131,8 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - **Admin approval** required before an ad goes live
 - **Placement rendering:** homepage top banner + featured strip, events-page side banner, dedicated **Sponsored page** (nav link)
 - **Ads promote an event** (Roblox-style): the organizer picks which of their events an ad promotes, and **clicking the ad redirects to that event's page** (external URL kept as an optional fallback). Ad cards show "Promoting: [Event]" with a "View Event" button.
-- **Click-through tracking** (redirect) + **impression tracking**; CTR shown on the dashboard
+- **Rotation:** each banner slot (top/featured/side) shows a **random active ad of that placement on every page load** (ad-network style); the Sponsored page lists them all. Only **admin-approved (active)** ads are shown.
+- **Click-through tracking** (redirect) + **impression tracking** (counted on display); CTR shown on the dashboard
 - Emails: **ad approved/rejected**, **ad expiring soon**, **ad auto-renewed / stopped (out of credits)**
 
 ### 5.4 Prepaid Credit Wallet ("Claude-style" billing)
