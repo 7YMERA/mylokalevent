@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
 
+    # SMTP (preferred — e.g. Gmail with an App Password; most reliable for demos).
+    # If these are set, email is sent via SMTP instead of SendGrid.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
     # SendGrid
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "no-reply@example.com"

@@ -24,15 +24,58 @@ def _resolve_recipient(to_email: str) -> tuple[str, str]:
 
 
 def send_email(to_email: str, subject: str, html: str) -> bool:
-    """Send an email. Returns True on success. Never raises (best-effort)."""
+    """Send an email. Returns True on success. Never raises (best-effort).
+
+    Provider is chosen automatically:
+      1. SMTP (e.g. Gmail with an App Password) if SMTP_HOST/USER/PASSWORD are set —
+         the most reliable for a demo, because the mail is genuinely sent by that
+         provider and passes SPF/DKIM/DMARC (so it lands in the inbox, not spam).
+      2. SendGrid if only an API key is set. NOTE: sending "from" a @gmail.com
+         address via SendGrid fails SPF/DKIM alignment for gmail.com, so strict
+         receivers (e.g. university mail) often mark it spam or drop it — prefer SMTP.
+      3. Otherwise mock (print to console) so the app runs offline.
+    """
     recipient, note = _resolve_recipient(to_email)
     html = note + html
 
-    if settings.mock_email or not settings.sendgrid_api_key:
+    if settings.mock_email:
         print(f"[email:mock] to={recipient} (for {to_email}) | {subject}")
         return True
+    if settings.smtp_host and settings.smtp_user and settings.smtp_password:
+        return _send_smtp(recipient, subject, html)
+    if settings.sendgrid_api_key:
+        return _send_sendgrid(recipient, subject, html)
+    print(f"[email:mock] no provider configured — to={recipient} | {subject}")
+    return True
 
-    to_email = recipient
+
+def _send_smtp(to_email: str, subject: str, html: str) -> bool:
+    """Send via SMTP (STARTTLS). Works great with Gmail using an App Password
+    (host smtp.gmail.com, port 587, user = your gmail, password = 16-char App
+    Password from Google account → Security → App passwords)."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        # From MUST be the authenticated SMTP user (Gmail rejects a mismatched From).
+        msg["From"] = formataddr((settings.sendgrid_from_name, settings.smtp_user))
+        msg["To"] = to_email
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
+            server.starttls()
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(settings.smtp_user, [to_email], msg.as_string())
+        return True
+    except Exception as exc:  # pragma: no cover
+        print(f"[email:smtp] send failed: {exc}")
+        return False
+
+
+def _send_sendgrid(to_email: str, subject: str, html: str) -> bool:
     try:
         from sendgrid import SendGridAPIClient
         from sendgrid.helpers.mail import Content, Email, Mail, To
@@ -43,11 +86,10 @@ def send_email(to_email: str, subject: str, html: str) -> bool:
             subject=subject,
             html_content=Content("text/html", html),
         )
-        client = SendGridAPIClient(settings.sendgrid_api_key)
-        resp = client.send(message)
+        resp = SendGridAPIClient(settings.sendgrid_api_key).send(message)
         return 200 <= resp.status_code < 300
     except Exception as exc:  # pragma: no cover
-        print(f"[email] send failed: {exc}")
+        print(f"[email:sendgrid] send failed: {exc}")
         return False
 
 
