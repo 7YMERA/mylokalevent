@@ -757,22 +757,75 @@ const Public = (() => {
     } catch (e) { grid.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  // ---------- Screen 9: Fishing Spots Directory ----------
-  async function spots() {
-    app().innerHTML = `<div class="container py-4">
-      <h3 class="mb-1"><i class="bi bi-geo-alt text-primary"></i> Fishing Spots Directory</h3>
-      <p class="text-muted">Recommended kolam pancing — tap to navigate via Google Maps.</p>
-      <div class="row" id="spotGrid">${spinner()}</div></div>`;
+  // ---------- Screen 9: Fishing Spots Directory (Events-style: filters + live results + ad rail) ----------
+  let _spotTimer;
+
+  function spotCard(s) {
+    return `<div class="col-md-4 mb-4"><div class="card card-hover h-100"><div class="card-body d-flex flex-column">
+      <h5>${esc(s.name)}</h5>
+      <span class="badge bg-light text-primary border mb-2 align-self-start"><i class="bi bi-geo-alt"></i> ${esc(s.district || '')}, ${esc(s.state || '')}</span>
+      <p class="text-muted small">${esc(s.description || '')}</p>
+      <a href="${esc(s.maps_url)}" target="_blank" class="btn btn-primary btn-sm w-100 mt-auto"><i class="bi bi-signpost-split"></i> Get Directions</a>
+    </div></div></div>`;
+  }
+
+  async function spots(params) {
+    const f = Object.assign({ q: '', state: '', district: '' }, params);
+    app().innerHTML = `<div class="container py-4"><div class="row">
+      <aside class="col-lg-3 mb-4">
+        <div class="card card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+            <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="Public.clearSpotFilters()">Clear</button>
+          </div>
+          <div class="mb-2"><label class="form-label small">Keyword</label>
+            <input id="sq" class="form-control form-control-sm" value="${esc(f.q)}"
+              placeholder="Search name…" oninput="Public.debouncedSpots()"></div>
+          <div class="mb-2"><label class="form-label small">State</label>
+            <select id="sstate" class="form-select form-select-sm" onchange="Public.refreshSpots()"><option value="">All</option>
+              ${STATES.map(s => `<option ${s === f.state ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+          <div class="mb-1"><label class="form-label small">District</label>
+            <input id="sdistrict" class="form-control form-control-sm" value="${esc(f.district)}"
+              placeholder="e.g. Ipoh" oninput="Public.debouncedSpots()"></div>
+        </div>
+        <div id="spotSideRail" class="mt-3"></div>
+      </aside>
+      <div class="col-lg-9">
+        <div class="mb-3">
+          <h3 class="mb-0"><i class="bi bi-geo-alt text-primary"></i> Fishing Spots Directory</h3>
+          <small class="text-muted" id="spotCount">Recommended kolam pancing — tap to navigate via Google Maps.</small>
+        </div>
+        <div class="row" id="spotGrid">${spinner()}</div>
+      </div></div></div>`;
+    loadSideRail('spotSideRail', 3);
+    refreshSpots();
+  }
+
+  function debouncedSpots() {
+    clearTimeout(_spotTimer);
+    _spotTimer = setTimeout(() => refreshSpots(), 300);
+  }
+
+  function clearSpotFilters() {
+    ['sq', 'sdistrict'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const st = document.getElementById('sstate'); if (st) st.value = '';
+    refreshSpots();
+  }
+
+  async function refreshSpots() {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const f = { q: val('sq'), state: val('sstate'), district: val('sdistrict') };
+    const grid = document.getElementById('spotGrid');
+    if (!grid) return;
+    grid.innerHTML = spinner();
     try {
-      const list = await API.get('/spots');
-      document.getElementById('spotGrid').innerHTML = list.length ? list.map(s => `
-        <div class="col-md-4 mb-4"><div class="card card-hover h-100"><div class="card-body">
-          <h5>${esc(s.name)}</h5>
-          <span class="badge bg-light text-primary border mb-2"><i class="bi bi-geo-alt"></i> ${esc(s.district || '')}, ${esc(s.state || '')}</span>
-          <p class="text-muted small">${esc(s.description || '')}</p>
-          <a href="${esc(s.maps_url)}" target="_blank" class="btn btn-primary btn-sm w-100"><i class="bi bi-signpost-split"></i> Get Directions</a>
-        </div></div></div>`).join('') : empty('No spots listed.', 'geo-alt');
-    } catch (e) { document.getElementById('spotGrid').innerHTML = empty(e.message, 'exclamation-triangle'); }
+      const list = await API.get('/spots' + API.qs(f));
+      grid.innerHTML = list.length ? list.map(spotCard).join('') : empty('No spots match your filters.', 'search');
+      const cnt = document.getElementById('spotCount');
+      if (cnt) cnt.textContent = list.length
+        ? `${list.length} spot${list.length > 1 ? 's' : ''} found`
+        : 'Recommended kolam pancing — tap to navigate via Google Maps.';
+    } catch (e) { grid.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
   // ---------- News ----------
@@ -793,6 +846,7 @@ const Public = (() => {
   return { home, loadFeatured, loadTopBanner, loadAdStrip, loadFeed, sponsored, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
     toggleComments, submitComment, deleteComment,
     events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent,
-    catches, debouncedCatch, clearCatchFilters, refreshCatches, spots, news,
+    catches, debouncedCatch, clearCatchFilters, refreshCatches,
+    spots, debouncedSpots, clearSpotFilters, refreshSpots, news,
     _f: {}, _composerEvents: [] };
 })();

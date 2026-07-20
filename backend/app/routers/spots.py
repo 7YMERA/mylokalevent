@@ -15,16 +15,18 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_spots(state: str | None = None, district: str | None = None,
+async def list_spots(q: str | None = None, state: str | None = None, district: str | None = None,
                      include_inactive: bool = False):
     db = get_db()
     query = db.table("fishing_spots").select("*")
     if not include_inactive:
         query = query.eq("is_active", True)
+    if q:
+        query = query.ilike("name", f"%{q}%")
     if state:
         query = query.eq("state", state)
     if district:
-        query = query.eq("district", district)
+        query = query.ilike("district", f"%{district}%")
     return query.order("name").execute().data
 
 

@@ -161,7 +161,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 
 ### 5.6 Fishery Marketplace
 - **Catch of the Day** board (Events-style layout): filter **sidebar** (species, location, max price/kg, sort by newest / price low→high / high→low) with **live in-place filtering**, result count, and pagination; plus a **Sponsored ad rail** in the sidebar
-- **Fishing Spots Directory** (*kolam pancing*): curated recreational spots with a **"Get Directions"** Google Maps link (no paid Maps API)
+- **Fishing Spots Directory** (*kolam pancing*, Events-style layout): filter **sidebar** (keyword/name, state, district) with **live in-place filtering** and a result count, a **Sponsored ad rail**, and a **"Get Directions"** Google Maps link per spot (no paid Maps API)
 
 ### 5.7 Payments
 - **Stripe Checkout** (hosted, MYR): event fees, ad fees, credit top-ups
