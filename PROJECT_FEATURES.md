@@ -125,7 +125,8 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
   | **Featured** | Homepage strip + listings | **RM70** |
   | **Feed post** | Native sponsored post inside the community feed | **RM50** |
   | **Side banner** | Events page sidebar | **RM40** |
-- Ad creation form with **live price** that updates by placement; banner upload; contact details
+- Ad creation form with **live price** that updates by placement; banner upload; contact details; the **"promote which event?"** picker lists **only the organizer's live events** (expired/pending hidden)
+- **Campaign lifecycle view** on the organizer dashboard: filter tabs (**All / Active / Expiring soon / Expired**) with live counts, an **"Ends" date** column, an **"expiring soon" badge** (≤2 days left / ends today), and a per-ad **Auto-renew vs No-auto-renew** badge
 - **No manual dates** — runs 7 days from creation (start date shown)
 - **Auto-renew toggle:** charges the placement price in **credits** every 7 days; **stops automatically** when credits run out (with email)
 - Pay ad fee with **Stripe** or **credits**
