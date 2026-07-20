@@ -113,6 +113,15 @@ def _attach_users(rows: list[dict]) -> list[dict]:
     return rows
 
 
+@router.get("/audit-logs/summary")
+async def audit_log_summary(_: CurrentUser = Depends(admin_only)):
+    """Per-action counts for the audit-log filter chips (All + one per action)."""
+    rows = get_db().table("audit_logs").select("action").execute().data or []
+    counts = Counter(r["action"] for r in rows if r.get("action"))
+    return {"total": len(rows),
+            "by_action": [{"action": k, "count": v} for k, v in counts.most_common()]}
+
+
 @router.get("/audit-logs")
 async def audit_logs(
     user_id: int | None = None,

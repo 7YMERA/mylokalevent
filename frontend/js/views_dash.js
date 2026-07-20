@@ -147,6 +147,7 @@ const Dash = (() => {
     try {
       const [d, ad] = await Promise.all([
         API.get('/me/organizer-summary'), API.get('/me/advertiser-summary')]);
+      Dash._campaigns = ad.campaigns;   // cached for the detail modal (Dash.viewAd)
 
       const eventRows = d.events.map(e => `<tr>
         <td><a href="/events/${e.id}">${esc(e.title)}</a></td>
@@ -168,8 +169,8 @@ const Dash = (() => {
         const expiringBadge = L.key === 'expiring'
           ? `<div class="mt-1"><span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span></div>` : '';
         return `<tr data-adgroup="${L.key}">
-          <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="56" class="rounded">` : '<span class="text-muted">—</span>'}</td>
-          <td>${esc(a.title)}
+          <td>${a.image_url ? `<img id="adThumb-${a.id}" src="${esc(a.image_url)}" width="56" class="rounded" role="button" onclick="Dash.viewAd(${a.id})">` : '<span class="text-muted">—</span>'}</td>
+          <td><a href="#" onclick="Dash.viewAd(${a.id});return false" class="fw-semibold text-decoration-none">${esc(a.title)}</a>
             <div class="small text-muted"><span class="text-capitalize">${esc(a.placement || 'featured')}</span>${a.event_title ? ' · → ' + esc(a.event_title) : ''}</div>
             <div class="mt-1">${renewBadge}</div></td>
           <td>${statusBadge(a.status)}${expiringBadge}</td>
@@ -177,6 +178,7 @@ const Dash = (() => {
           <td class="text-center"><b>${a.ctr || 0}%</b></td>
           <td class="small text-nowrap">${a.end_date ? fmtDate(a.end_date) : '—'}</td>
           <td class="text-nowrap">
+            <button class="btn btn-sm btn-outline-secondary" title="View details" onclick="Dash.viewAd(${a.id})"><i class="bi bi-eye"></i></button>
             <button class="btn btn-sm btn-outline-primary" title="Send expiry reminder (demo)" onclick="Dash.remindAdExpiry(${a.id})"><i class="bi bi-bell"></i></button>
             <button class="btn btn-sm btn-outline-danger" onclick="Dash.delAd(${a.id})"><i class="bi bi-trash"></i></button></td></tr>`;
       }).join('');
@@ -234,6 +236,79 @@ const Dash = (() => {
     try { await API.post(`/advertisements/${id}/remind-expiry`); UI.toast('Expiry reminder email sent','success'); }
     catch (e) { UI.toast(e.message,'danger'); }
   }
+
+  // Detail modal for a campaign — shows every field the advertiser entered, plus
+  // an inline banner uploader that updates the image live (PUT /advertisements/{id}).
+  // Reads from the cached campaigns list (Dash._campaigns) set by organizer()/advertiser().
+  function viewAd(id) {
+    const a = (Dash._campaigns || []).find(c => c.id === id);
+    if (!a) { UI.toast('Campaign not found', 'warning'); return; }
+    document.getElementById('adModalMount')?.remove();
+    const promotes = a.event_title ? `<i class="bi bi-calendar-event"></i> ${esc(a.event_title)}`
+      : (a.target_url ? `<i class="bi bi-box-arrow-up-right"></i> ${esc(a.target_url)}` : '—');
+    const html = `<div class="modal fade" id="adModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-megaphone text-primary"></i> ${esc(a.title)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-5">
+                <img id="adModalImg" src="${esc(a.image_url || '')}" alt="banner"
+                     class="img-fluid rounded border mb-2 ${a.image_url ? '' : 'd-none'}" style="width:100%;max-height:180px;object-fit:cover">
+                <div id="adModalNoImg" class="text-center text-muted border rounded p-4 mb-2 ${a.image_url ? 'd-none' : ''}">
+                  <i class="bi bi-image" style="font-size:2rem"></i><div class="small">No banner yet</div></div>
+                <div class="card card-body bg-light">
+                  <label class="form-label small fw-bold mb-1"><i class="bi bi-arrow-repeat"></i> Update banner</label>
+                  ${UI.uploader('adEditImg', 'ads', { size: 56, label: 'Choose new image' })}
+                  <button class="btn btn-sm btn-success mt-2" onclick="Dash.saveAdBanner(${a.id})"><i class="bi bi-save"></i> Save new banner</button>
+                </div>
+              </div>
+              <div class="col-md-7">
+                <table class="table table-sm align-middle mb-0">
+                  <tbody>
+                    <tr><th class="text-muted" style="width:38%">Status</th><td>${statusBadge(a.status)}</td></tr>
+                    <tr><th class="text-muted">Placement</th><td class="text-capitalize">${esc(a.placement || 'featured')}</td></tr>
+                    <tr><th class="text-muted">Promotes</th><td>${promotes}</td></tr>
+                    <tr><th class="text-muted">Description</th><td>${esc(a.description || '—')}</td></tr>
+                    <tr><th class="text-muted">Contact</th><td>${esc(a.contact_email || '—')}${a.contact_phone ? '<br>' + esc(a.contact_phone) : ''}</td></tr>
+                    <tr><th class="text-muted">Runs</th><td>${fmtDate(a.start_date)} → ${fmtDate(a.end_date)}</td></tr>
+                    <tr><th class="text-muted">Auto-renew</th><td>${a.auto_renew ? '<span class="badge bg-success">On</span>' : '<span class="badge bg-secondary">Off</span>'}</td></tr>
+                    <tr><th class="text-muted">Performance</th><td>${a.impressions || 0} impressions · ${a.clicks || 0} clicks · <b>${a.ctr || 0}% CTR</b></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>`;
+    const mount = document.createElement('div');
+    mount.id = 'adModalMount';
+    mount.innerHTML = html;
+    document.body.appendChild(mount);
+    const el = document.getElementById('adModal');
+    el.addEventListener('hidden.bs.modal', () => mount.remove());
+    new bootstrap.Modal(el).show();
+  }
+
+  async function saveAdBanner(id) {
+    const url = document.getElementById('adEditImg')?.value;
+    if (!url) { UI.toast('Choose an image first', 'warning'); return; }
+    try {
+      await API.put(`/advertisements/${id}`, { image_url: url });
+      const img = document.getElementById('adModalImg');
+      const no = document.getElementById('adModalNoImg');
+      if (img) { img.src = url; img.classList.remove('d-none'); }
+      if (no) no.classList.add('d-none');
+      const thumb = document.getElementById(`adThumb-${id}`);
+      if (thumb) thumb.src = url;                       // reflect in the table too
+      const c = (Dash._campaigns || []).find(x => x.id === id);
+      if (c) c.image_url = url;
+      UI.toast('Banner updated', 'success');
+    } catch (e) { UI.toast(e.message, 'danger'); }
+  }
   async function delEvent(id) {
     if (!confirm('Delete this event?')) return;
     try { await API.del(`/events/${id}`); UI.toast('Event deleted','success'); organizer(); }
@@ -247,6 +322,7 @@ const Dash = (() => {
       UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/advertiser-summary');
+      Dash._campaigns = d.campaigns;   // cached for the detail modal (Dash.viewAd)
       const lc = d.campaigns.map(adLifecycle);
       const nActive = lc.filter(x => x.key === 'active').length;
       const nExpiring = lc.filter(x => x.key === 'expiring').length;
@@ -259,8 +335,8 @@ const Dash = (() => {
         const expiringBadge = L.key === 'expiring'
           ? `<div class="mt-1"><span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span></div>` : '';
         return `<tr data-adgroup="${L.key}">
-          <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="60" class="rounded">` : '<span class="text-muted">—</span>'}</td>
-          <td>${esc(a.title)}<div class="mt-1">${renewBadge}</div></td>
+          <td>${a.image_url ? `<img id="adThumb-${a.id}" src="${esc(a.image_url)}" width="60" class="rounded" role="button" onclick="Dash.viewAd(${a.id})">` : '<span class="text-muted">—</span>'}</td>
+          <td><a href="#" onclick="Dash.viewAd(${a.id});return false" class="fw-semibold text-decoration-none">${esc(a.title)}</a><div class="mt-1">${renewBadge}</div></td>
           <td>${statusBadge(a.status)}${expiringBadge}</td>
           <td class="text-center">${a.impressions || 0}</td><td class="text-center">${a.clicks || 0}</td>
           <td class="text-center"><b>${a.ctr || 0}%</b></td><td class="small text-nowrap">${a.end_date ? fmtDate(a.end_date) : '—'}</td></tr>`;
@@ -589,26 +665,55 @@ const Dash = (() => {
   // ---------- Screen 6: Audit log viewer ----------
   async function audit() {
     const u = UI.requireRole('admin'); if (!u) return;
+    Dash._auditAction = '';
     app().innerHTML = shell('<i class="bi bi-shield-check text-primary"></i> Audit Logs','/admin/audit', `
-      <div class="card card-body mb-3"><form class="row g-2 align-items-end" onsubmit="Dash.loadAudit(event)">
-        <div class="col-auto"><label class="form-label small">Action</label>
-          <select id="aAction" class="form-select form-select-sm"><option value="">All</option>
-            ${['CREATE','UPDATE','DELETE','APPROVE','REJECT','LOGIN','LOGOUT','LOGIN_FAILED','EXPORT'].map(a=>`<option>${a}</option>`).join('')}</select></div>
-        <div class="col-auto"><label class="form-label small">User ID (optional)</label><input id="aUser" type="number" class="form-control form-control-sm" style="width:120px"></div>
-        <div class="col-auto"><button class="btn btn-primary btn-sm">Filter</button></div>
-        <div class="col-auto"><a href="/api/analytics/audit-logs/export" class="btn btn-outline-success btn-sm" id="aExport"><i class="bi bi-download"></i> Export CSV</a></div>
-      </form></div>
+      <div class="card card-body mb-3">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-end gap-2">
+            <div><label class="form-label small mb-1">User ID (optional)</label>
+              <input id="aUser" type="number" class="form-control form-control-sm" style="width:130px"
+                onkeydown="if(event.key==='Enter')Dash.loadAudit()"></div>
+            <button class="btn btn-primary btn-sm" onclick="Dash.loadAudit()">Filter</button>
+          </div>
+          <a href="/api/analytics/audit-logs/export" class="btn btn-outline-success btn-sm" id="aExport"><i class="bi bi-download"></i> Export CSV</a>
+        </div>
+        <div id="auditChips" class="d-flex flex-wrap gap-2">${spinner()}</div>
+      </div>
       <div class="card"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">
         <thead class="table-light"><tr><th>Time</th><th>User</th><th>Action</th><th>Table</th><th>Record</th><th>IP</th></tr></thead>
         <tbody id="auditBody">${spinner()}</tbody></table></div></div>`);
     // Export needs auth header — fetch as blob
     document.getElementById('aExport').onclick = Dash.exportAudit;
     loadAdminBadges();
+    loadAuditChips();
+    loadAudit();
+  }
+  // Filter chips (All + one per action, each with a live count) — replaces the
+  // old Action dropdown, matching the "category filter" pattern.
+  async function loadAuditChips() {
+    const box = document.getElementById('auditChips');
+    if (!box) return;
+    try {
+      const s = await API.get('/analytics/audit-logs/summary');
+      const active = Dash._auditAction || '';
+      const chip = (action, label, count) => {
+        const on = active === action;
+        return `<button type="button" class="btn btn-sm rounded-pill ${on ? 'btn-primary' : 'btn-outline-secondary'}"
+          onclick="Dash.setAuditAction('${action}')">${esc(label)}
+          <span class="badge ${on ? 'bg-light text-primary' : 'bg-secondary'} ms-1">${count}</span></button>`;
+      };
+      box.innerHTML = chip('', 'All', s.total) +
+        s.by_action.map(a => chip(a.action, a.action, a.count)).join('');
+    } catch { box.innerHTML = ''; }
+  }
+  function setAuditAction(action) {
+    Dash._auditAction = action;
+    loadAuditChips();   // re-render to move the active highlight
     loadAudit();
   }
   async function loadAudit(e) {
-    if (e) e.preventDefault();
-    const action = document.getElementById('aAction')?.value || '';
+    if (e && e.preventDefault) e.preventDefault();
+    const action = Dash._auditAction || '';
     const user_id = document.getElementById('aUser')?.value || '';
     try {
       const data = await API.get('/analytics/audit-logs' + API.qs({ action, user_id, page_size: 100 }));
@@ -656,8 +761,8 @@ const Dash = (() => {
     catch (e) { UI.toast(e.message,'danger'); }
   }
 
-  return { organizer, delEvent, delAd, remindAdExpiry, readNotif, filterAds, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
-    _adPrices: {},
+  return { organizer, delEvent, delAd, remindAdExpiry, readNotif, filterAds, viewAd, saveAdBanner, advertiser, newCampaign, submitAd, updateAdFee, fisherman, submitCatch, markSold, delCatch,
+    _adPrices: {}, _campaigns: [], _auditAction: '',
     admin, approve, reject, approveAd, rejectAd, pendingEvents, pendingAds, loadAdminBadges,
-    audit, loadAudit, exportAudit, users, setStatus };
+    audit, loadAudit, loadAuditChips, setAuditAction, exportAudit, users, setStatus };
 })();

@@ -72,6 +72,17 @@ The *"Promote which event?"* dropdown now lists **only the organizer's live even
 - **Report impact:** Advertising / Workflow-automation section (lifecycle + auto-renew).
 - **Slides impact:** Screenshot the campaign table with the filter tabs + badges.
 
+### 1h. Campaign detail modal + live banner update
+Clicking any campaign (title, thumbnail, or the eye button) opens a **detail
+modal** showing every field the advertiser entered (status, placement, promoted
+event/link, description, contact, run dates, auto-renew, and impressions/clicks/
+CTR). It includes an **inline banner uploader** that swaps the ad image **live**
+(saved via `PUT /advertisements/{id}`) — the new banner shows immediately in the
+modal and the table.
+- **Report impact:** Advertising / Data-management (CRUD) — ads are now editable
+  (banner) from a detail view, not just create/delete.
+- **Slides impact:** Screenshot the campaign detail modal.
+
 ### Current ad placement pricing (update the pricing table in the report/deck)
 | Placement | Where it shows | Price / 7 days |
 |---|---|---|
@@ -108,6 +119,14 @@ Expanded from **4 KPIs + 3 charts** to:
 - **Report impact:** *Dashboard & Reporting (Req 2)* and *Analytics & Decision
   Support (Req 8)* — richer admin analytics.
 - **Slides impact:** Replace the admin-dashboard screenshot (now much fuller).
+
+### 3a. Audit Logs — action filter chips (was a dropdown)
+The Audit Logs page's Action dropdown is now a row of **filter chips** (All + one
+per action, each with a **live count** — e.g. LOGIN 55, CREATE 19, UPDATE 10 …),
+matching a category-filter pattern. Backed by a new
+`GET /analytics/audit-logs/summary` endpoint. User-ID filter and CSV export remain.
+- **Report impact:** *Audit & Logging (Req 7)* — describe the chip filter + counts.
+- **Slides impact:** Screenshot the audit log with the chip bar.
 
 ---
 
