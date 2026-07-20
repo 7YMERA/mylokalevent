@@ -140,6 +140,47 @@ const Public = (() => {
     return ads.items[Math.floor(Math.random() * ads.items.length)];
   }
 
+  // Pick up to `n` distinct random active ads for a sidebar rail. Prefers the
+  // given placement, then tops up with any other active ads so the rail stays
+  // populated even when few side-placement ads exist.
+  async function pickAds(n = 3, placement = 'side') {
+    let ads = [];
+    try { ads = (await API.get('/advertisements?placement=' + placement + '&page_size=20')).items || []; } catch {}
+    if (ads.length < n) {
+      try {
+        const seen = new Set(ads.map(a => a.id));
+        for (const a of (await API.get('/advertisements?page_size=30')).items || []) {
+          if (!seen.has(a.id)) { ads.push(a); seen.add(a.id); }
+        }
+      } catch {}
+    }
+    for (let i = ads.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ads[i], ads[j]] = [ads[j], ads[i]]; }
+    return ads.slice(0, n);
+  }
+
+  // A compact sidebar ad card (counts a view on display).
+  function sideAdCard(a) {
+    trackImpression(a.id);
+    const inner = `<div class="card card-body p-2 position-relative mb-2">
+      <span class="badge bg-dark position-absolute top-0 end-0 m-1 opacity-75" style="font-size:.6rem">Ad</span>
+      ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded mb-1">` : ''}
+      <div class="small fw-bold">${esc(a.title)}</div>
+      <div class="small text-muted">${esc((a.description || '').slice(0, 55))}</div></div>`;
+    return adLink(a, inner, 'd-block');
+  }
+
+  // Render a small "Sponsored" rail of ads into the given container.
+  async function loadSideRail(boxId, n = 3) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    try {
+      const ads = await pickAds(n, 'side');
+      box.innerHTML = ads.length
+        ? `<div class="small text-muted fw-bold mb-1"><i class="bi bi-megaphone"></i> Sponsored</div>` + ads.map(sideAdCard).join('')
+        : '';
+    } catch { box.innerHTML = ''; }
+  }
+
   // Top banner (placement=top) — full-width strip near the top of the home page.
   async function loadTopBanner() {
     const box = document.getElementById('topBanner');
@@ -506,20 +547,8 @@ const Public = (() => {
         cats.map(c => `<option value="${c.id}" ${String(c.id) === String(f.category_id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
     } catch {}
 
-    // Side banner ad (placement=side) — random one per load
-    try {
-      const a = await pickAd('side');
-      const box = document.getElementById('sideBanner');
-      if (box && a) {
-        trackImpression(a.id);
-        const inner = `<div class="card card-body p-2 position-relative">
-          <span class="badge bg-dark position-absolute top-0 end-0 m-1 opacity-75" style="font-size:.6rem">Ad</span>
-          ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded mb-1">` : ''}
-          <div class="small fw-bold">${esc(a.title)}</div>
-          <div class="small text-muted">${esc((a.description || '').slice(0, 50))}</div></div>`;
-        box.innerHTML = adLink(a, inner, 'd-block');
-      }
-    } catch {}
+    // Sidebar "Sponsored" rail — a few rotating ads (was a single banner).
+    loadSideRail('sideBanner', 3);
 
     refreshResults(f.page || 1);
   }
@@ -632,25 +661,100 @@ const Public = (() => {
     catch (e) { UI.toast(e.message, 'danger'); }
   }
 
-  // ---------- Screen 8: Catch of the Day ----------
-  async function catches() {
-    app().innerHTML = `<div class="container py-4">
-      <h3 class="mb-1"><i class="bi bi-fish text-primary"></i> Catch of the Day</h3>
-      <p class="text-muted">Fresh seafood from local fishermen co-ops.</p>
-      <div class="row" id="catchGrid">${spinner()}</div></div>`;
+  // ---------- Screen 8: Catch of the Day (Events-style: filters + live results + ad rail) ----------
+  let _catchTimer;
+
+  function catchCard(c) {
+    const img = c.image_url
+      ? `<img src="${esc(c.image_url)}" class="event-thumb w-100">`
+      : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-fish" style="font-size:2.5rem"></i></div>`;
+    return `<div class="col-md-4 mb-4"><div class="card card-hover h-100">
+      ${img}
+      <div class="card-body">
+        <h6 class="mb-1">${esc(c.species)}</h6>
+        <p class="mb-1 text-success fw-bold">${money(c.price_per_kg)}/kg</p>
+        <p class="small text-muted mb-1"><i class="bi bi-box"></i> ${c.weight_kg} kg available</p>
+        <p class="small text-muted mb-0"><i class="bi bi-geo-alt"></i> ${esc(c.location || '—')}</p>
+      </div></div></div>`;
+  }
+
+  async function catches(params) {
+    const f = Object.assign({ q: '', location: '', max_price: '', sort: 'newest' }, params);
+    app().innerHTML = `<div class="container py-4"><div class="row">
+      <aside class="col-lg-3 mb-4">
+        <div class="card card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+            <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="Public.clearCatchFilters()">Clear</button>
+          </div>
+          <div class="mb-2"><label class="form-label small">Species</label>
+            <input id="cq" class="form-control form-control-sm" value="${esc(f.q)}"
+              placeholder="e.g. Tuna, Siakap…" oninput="Public.debouncedCatch()"></div>
+          <div class="mb-2"><label class="form-label small">Location</label>
+            <input id="cloc" class="form-control form-control-sm" value="${esc(f.location)}"
+              placeholder="e.g. Kemaman" oninput="Public.debouncedCatch()"></div>
+          <div class="mb-3"><label class="form-label small">Max price (RM/kg)</label>
+            <input id="cprice" type="number" min="0" class="form-control form-control-sm" value="${esc(f.max_price)}"
+              placeholder="Any" oninput="Public.debouncedCatch()"></div>
+        </div>
+        <div id="catchSideRail" class="mt-3"></div>
+      </aside>
+      <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div><h3 class="mb-0"><i class="bi bi-fish text-primary"></i> Catch of the Day</h3>
+            <small class="text-muted" id="catchCount">Fresh seafood from local fishermen co-ops.</small></div>
+          <select id="csort" class="form-select form-select-sm w-auto" onchange="Public.refreshCatches(1)">
+            <option value="newest" ${f.sort==='newest'?'selected':''}>Newest</option>
+            <option value="price_low" ${f.sort==='price_low'?'selected':''}>Price: Low → High</option>
+            <option value="price_high" ${f.sort==='price_high'?'selected':''}>Price: High → Low</option>
+          </select>
+        </div>
+        <div class="row" id="catchGrid">${spinner()}</div>
+        <nav id="catchPager" class="mt-3"></nav>
+      </div></div></div>`;
+    loadSideRail('catchSideRail', 3);
+    refreshCatches(f.page || 1);
+  }
+
+  function debouncedCatch() {
+    clearTimeout(_catchTimer);
+    _catchTimer = setTimeout(() => refreshCatches(1), 300);
+  }
+
+  function clearCatchFilters() {
+    ['cq', 'cloc', 'cprice'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const s = document.getElementById('csort'); if (s) s.value = 'newest';
+    refreshCatches(1);
+  }
+
+  async function refreshCatches(page) {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const f = {
+      species: val('cq'), location: val('cloc'), max_price: val('cprice'),
+      sort: val('csort') || 'newest', page: page || 1, page_size: 12,
+    };
+    const grid = document.getElementById('catchGrid');
+    if (!grid) return;
+    grid.innerHTML = spinner();
     try {
-      const data = await API.get('/fish-catches?page_size=24');
-      document.getElementById('catchGrid').innerHTML = data.items.length ? data.items.map(c => `
-        <div class="col-md-3 mb-4"><div class="card card-hover h-100">
-          ${c.image_url ? `<img src="${esc(c.image_url)}" class="event-thumb w-100">`
-            : `<div class="event-thumb w-100 d-flex align-items-center justify-content-center text-primary"><i class="bi bi-fish" style="font-size:2.5rem"></i></div>`}
-          <div class="card-body">
-            <h6 class="mb-1">${esc(c.species)}</h6>
-            <p class="mb-1 text-success fw-bold">${money(c.price_per_kg)}/kg</p>
-            <p class="small text-muted mb-1"><i class="bi bi-box"></i> ${c.weight_kg} kg available</p>
-            <p class="small text-muted mb-0"><i class="bi bi-geo-alt"></i> ${esc(c.location || '—')}</p>
-          </div></div></div>`).join('') : empty('No catches listed right now.', 'fish');
-    } catch (e) { document.getElementById('catchGrid').innerHTML = empty(e.message, 'exclamation-triangle'); }
+      const data = await API.get('/fish-catches' + API.qs(f));
+      grid.innerHTML = data.items.length
+        ? data.items.map(catchCard).join('') : empty('No catches match your filters.', 'search');
+      const cnt = document.getElementById('catchCount');
+      if (cnt) cnt.textContent = data.total
+        ? `${data.total} listing${data.total > 1 ? 's' : ''} available`
+        : 'Fresh seafood from local fishermen co-ops.';
+      const pager = document.getElementById('catchPager');
+      if (pager) {
+        if (data.pages > 1) {
+          let h = '<ul class="pagination justify-content-center">';
+          for (let p = 1; p <= data.pages; p++)
+            h += `<li class="page-item ${p === data.page ? 'active' : ''}"><a class="page-link" href="#" onclick="Public.refreshCatches(${p});return false">${p}</a></li>`;
+          pager.innerHTML = h + '</ul>';
+        } else { pager.innerHTML = ''; }
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) { grid.innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
   // ---------- Screen 9: Fishing Spots Directory ----------
@@ -688,6 +792,7 @@ const Public = (() => {
 
   return { home, loadFeatured, loadTopBanner, loadAdStrip, loadFeed, sponsored, toggleComposer, filterComposerEvents, submitPost, likePost, deletePost,
     toggleComments, submitComment, deleteComment,
-    events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent, catches, spots, news,
+    events, debouncedRefresh, clearFilters, refreshResults, eventDetail, saveEvent,
+    catches, debouncedCatch, clearCatchFilters, refreshCatches, spots, news,
     _f: {}, _composerEvents: [] };
 })();
