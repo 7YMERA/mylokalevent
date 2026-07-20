@@ -184,7 +184,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 
 ### 5.10 Admin & Analytics
 - **Admin dashboard (full operations console):** **8 KPI cards** (total events, pending events, revenue, active ads, total users, fish catches, payments, avg ad CTR) + **four Chart.js charts** (events by state, monthly revenue, events by category, catch landings by species) + a **Top Ad Campaigns** table (clicks/impressions/CTR), a **Recent Activity** feed (live audit trail), and a **Newest Members** table
-- **Pending Events** and **Pending Ads** as dedicated sidebar pages with **live count badges**; approve/reject with reason
+- **Pending Events**, **Pending Ads**, and **Pending Spots** as dedicated sidebar pages with **live count badges**; approve/reject
 - **User management:** list users, change status (active/suspended/banned)
 - **Analytics endpoints:** dashboard KPIs, events-by-state, events-by-category, monthly revenue, ad CTR, catch-volume trends
 - **Audit log viewer** with **action filter chips** (All + one per action, each showing a live count — CREATE/UPDATE/DELETE/APPROVE/LOGIN/…), a User-ID filter, and **CSV export**; actions shown with **name + email** (not raw IDs)
