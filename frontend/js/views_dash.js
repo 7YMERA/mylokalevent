@@ -244,11 +244,24 @@ const Dash = (() => {
       UI.skeletonKpis(4) + `<div class="card p-3 mt-2">${UI.skeleton(240)}</div>`);
     try {
       const d = await API.get('/me/advertiser-summary');
-      const rows = d.campaigns.map(a => `<tr>
-        <td>${a.image_url?`<img src="${esc(a.image_url)}" width="60" class="rounded">`:'<span class="text-muted">—</span>'}</td>
-        <td>${esc(a.title)}</td><td>${statusBadge(a.status)}</td>
-        <td class="text-center">${a.impressions||0}</td><td class="text-center">${a.clicks||0}</td>
-        <td class="text-center"><b>${a.ctr||0}%</b></td><td>${fmtDate(a.end_date)}</td></tr>`).join('');
+      const lc = d.campaigns.map(adLifecycle);
+      const nActive = lc.filter(x => x.key === 'active').length;
+      const nExpiring = lc.filter(x => x.key === 'expiring').length;
+      const nExpired = lc.filter(x => x.key === 'expired').length;
+      const rows = d.campaigns.map((a, i) => {
+        const L = lc[i];
+        const renewBadge = a.auto_renew
+          ? '<span class="badge bg-success"><i class="bi bi-arrow-repeat"></i> Auto-renew</span>'
+          : '<span class="badge bg-light text-muted border"><i class="bi bi-slash-circle"></i> No auto-renew</span>';
+        const expiringBadge = L.key === 'expiring'
+          ? `<div class="mt-1"><span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${L.daysLeft <= 0 ? 'ends today' : L.daysLeft + 'd left'}</span></div>` : '';
+        return `<tr data-adgroup="${L.key}">
+          <td>${a.image_url ? `<img src="${esc(a.image_url)}" width="60" class="rounded">` : '<span class="text-muted">—</span>'}</td>
+          <td>${esc(a.title)}<div class="mt-1">${renewBadge}</div></td>
+          <td>${statusBadge(a.status)}${expiringBadge}</td>
+          <td class="text-center">${a.impressions || 0}</td><td class="text-center">${a.clicks || 0}</td>
+          <td class="text-center"><b>${a.ctr || 0}%</b></td><td class="small text-nowrap">${a.end_date ? fmtDate(a.end_date) : '—'}</td></tr>`;
+      }).join('');
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h3>
         <div class="row">
           ${kpi(d.total_campaigns,'Campaigns','kpi-blue','collection')}
@@ -258,9 +271,15 @@ const Dash = (() => {
         </div>
         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
           <h5 class="mb-0">My Campaigns</h5><a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> New Campaign</a></div>
+        <div class="btn-group btn-group-sm mb-2 flex-wrap" role="group" aria-label="Filter campaigns">
+          <button type="button" class="btn btn-outline-primary active" onclick="Dash.filterAds(this,'all')">All <span class="badge bg-secondary">${d.campaigns.length}</span></button>
+          <button type="button" class="btn btn-outline-success" onclick="Dash.filterAds(this,'active')">Active <span class="badge bg-success">${nActive}</span></button>
+          <button type="button" class="btn btn-outline-warning" onclick="Dash.filterAds(this,'expiring')">Expiring soon <span class="badge bg-warning text-dark">${nExpiring}</span></button>
+          <button type="button" class="btn btn-outline-secondary" onclick="Dash.filterAds(this,'expired')">Expired <span class="badge bg-secondary">${nExpired}</span></button>
+        </div>
         <div class="row"><div class="col-lg-7"><div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
           <thead class="table-light"><tr><th>Banner</th><th>Title</th><th>Status</th><th class="text-center">Impr.</th><th class="text-center">Clicks</th><th class="text-center">CTR</th><th>Ends</th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="7">${empty('No campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
+          <tbody id="adTableBody">${rows || `<tr><td colspan="7">${empty('No campaigns yet.','megaphone')}</td></tr>`}</tbody></table></div></div></div>
           <div class="col-lg-5"><div class="card card-body"><h6>Clicks by Campaign</h6><canvas id="adChart" height="200"></canvas></div></div></div>`;
       clearCharts();
       if (d.campaigns.length) {
