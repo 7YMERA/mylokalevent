@@ -46,12 +46,19 @@ async def topup_wallet(payload: TopupRequest, user: CurrentUser = Depends(get_cu
 
 @router.post("/wallet/remind-low")
 async def remind_low_credits(user: CurrentUser = Depends(get_current_user)):
-    """Demo helper: send the 'credits running low' email to the current user now."""
+    """Demo helper: raise the 'credits running low' reminder now. Creates an in-app
+    notification (the reliable signal) and also best-effort emails."""
+    from app.notify import notify
     from app.services.email_service import send_low_credits
+
+    bal = get_balance(int(user.id))
+    notify(int(user.id), "Low credit balance",
+           f"Your wallet is down to RM{bal:.2f}. Top up to keep posting events and running ads.")
+
     email = get_db().table("users").select("email").eq("id", int(user.id)).execute().data
-    if email:
-        send_low_credits(email[0]["email"], get_balance(int(user.id)))
-    return {"message": "Low-balance reminder sent"}
+    if email:  # best-effort email (only if an email provider is configured)
+        send_low_credits(email[0]["email"], bal)
+    return {"message": "Low-balance alert added to notifications"}
 
 
 @router.get("/profile")

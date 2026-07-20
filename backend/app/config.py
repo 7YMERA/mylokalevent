@@ -41,10 +41,11 @@ class Settings(BaseSettings):
     toyyibpay_secret_key: str = ""
     toyyibpay_category_code: str = ""
 
-    # Email is sent via a fallback chain, in this order (first configured wins,
-    # next is tried only if the previous FAILS): SMTP → Brevo → Resend → SendGrid.
-    # SMTP (Gmail App Password) delivers best; the HTTP APIs (Brevo/Resend) are the
-    # fallback for hosts that block outbound SMTP (some free PaaS do).
+    # Email is sent via a fallback chain (first configured wins, next tried only if
+    # the previous FAILS): SMTP → Brevo → Resend. SMTP (Gmail App Password) delivers
+    # best; the HTTP APIs (Brevo/Resend) are the fallback for hosts that block SMTP.
+    # (SendGrid was dropped — it accepted mail but never delivered from a Gmail
+    # sender. In-app notifications are the reliable user-facing signal regardless.)
 
     # SMTP (e.g. Gmail with an App Password).
     smtp_host: str = ""
@@ -60,8 +61,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from: str = ""
 
-    # SendGrid
-    sendgrid_api_key: str = ""
+    # Shared "From" identity used by all providers above.
     sendgrid_from_email: str = "no-reply@example.com"
     sendgrid_from_name: str = "MyLokalEvent"
     # Demo: emails to fake seeded accounts (@demo.*, admin) are redirected here so
