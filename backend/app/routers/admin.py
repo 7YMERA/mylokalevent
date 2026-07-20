@@ -10,7 +10,12 @@ from app.database import get_db
 from app.dependencies import CurrentUser, require_roles
 from app.notify import notify
 from app.schemas.events import RejectRequest
-from app.services.email_service import send_event_approved, send_event_rejected
+from app.services.email_service import (
+    send_ad_approved,
+    send_ad_rejected,
+    send_event_approved,
+    send_event_rejected,
+)
 from app.utils import client_ip, user_agent
 
 router = APIRouter()
@@ -99,6 +104,10 @@ async def approve_ad(ad_id: int, request: Request, admin: CurrentUser = Depends(
     db.table("advertisements").update({"status": "active"}).eq("id", ad_id).execute()
     write_audit_log(user_id=admin.id, action="APPROVE", table_name="advertisements", record_id=ad_id,
                     new_value={"status": "active"}, ip_address=client_ip(request), user_agent=user_agent(request))
+
+    advertiser = db.table("users").select("email").eq("id", ad["advertiser_id"]).execute().data
+    if advertiser:
+        send_ad_approved(advertiser[0]["email"], ad["title"])
     notify(ad["advertiser_id"], "Ad approved", f"Your campaign '{ad['title']}' is now running.")
     return {"message": "Ad approved", "status": "active"}
 
@@ -114,6 +123,10 @@ async def reject_ad(ad_id: int, payload: RejectRequest, request: Request,
     db.table("advertisements").update({"status": "rejected", "reject_reason": payload.reason}).eq("id", ad_id).execute()
     write_audit_log(user_id=admin.id, action="REJECT", table_name="advertisements", record_id=ad_id,
                     new_value={"status": "rejected"}, ip_address=client_ip(request), user_agent=user_agent(request))
+
+    advertiser = db.table("users").select("email").eq("id", ad["advertiser_id"]).execute().data
+    if advertiser:
+        send_ad_rejected(advertiser[0]["email"], ad["title"], payload.reason)
     notify(ad["advertiser_id"], "Ad rejected", f"'{ad['title']}' was rejected: {payload.reason}")
     return {"message": "Ad rejected", "status": "rejected"}
 
