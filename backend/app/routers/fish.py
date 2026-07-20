@@ -20,6 +20,8 @@ router = APIRouter()
 async def list_catches(
     species: str | None = None,
     location: str | None = None,
+    max_price: float | None = None,
+    sort: str = "newest",   # newest | price_low | price_high
     available_only: bool = True,
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=50),
@@ -32,7 +34,14 @@ async def list_catches(
         query = query.ilike("species", f"%{species}%")
     if location:
         query = query.ilike("location", f"%{location}%")
-    query = query.order("created_at", desc=True)
+    if max_price is not None:
+        query = query.lte("price_per_kg", max_price)
+    if sort == "price_low":
+        query = query.order("price_per_kg", desc=False)
+    elif sort == "price_high":
+        query = query.order("price_per_kg", desc=True)
+    else:
+        query = query.order("created_at", desc=True)
     start = (page - 1) * page_size
     res = query.range(start, start + page_size - 1).execute()
     total = res.count or 0

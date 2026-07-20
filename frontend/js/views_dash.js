@@ -368,7 +368,7 @@ const Dash = (() => {
     const u = UI.requireRole('admin'); if (!u) return;
     // Show a realistic loading buffer (skeleton) while data streams in.
     app().innerHTML = shell('<i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard', '/admin',
-      UI.skeletonKpis(4) + `<div class="row">
+      UI.skeletonKpis(4) + UI.skeletonKpis(4) + `<div class="row">
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
         <div class="col-lg-4 mb-3"><div class="card p-3">${UI.skeleton(220)}</div></div>
@@ -378,6 +378,39 @@ const Dash = (() => {
       const [d, byState, byCat, revenue] = await Promise.all([
         API.get('/analytics/dashboard'), API.get('/analytics/events-by-state'),
         API.get('/analytics/events-by-category'), API.get('/analytics/revenue-monthly') ]);
+      // Secondary panels — degrade gracefully if any single call fails.
+      const [adCtr, catchTrends, audit, usersList] = await Promise.all([
+        API.get('/analytics/ad-ctr').catch(() => []),
+        API.get('/analytics/catch-trends').catch(() => []),
+        API.get('/analytics/audit-logs?page_size=8').catch(() => ({ items: [] })),
+        API.get('/admin/users').catch(() => []),
+      ]);
+      const recent = audit.items || [];
+      const totalClicks = adCtr.reduce((s, a) => s + (a.clicks || 0), 0);
+      const totalImpr = adCtr.reduce((s, a) => s + (a.impressions || 0), 0);
+      const avgCtr = totalImpr ? ((totalClicks / totalImpr) * 100).toFixed(1) + '%' : '0%';
+      const newest = [...usersList].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 8);
+
+      const topAds = adCtr.slice(0, 6).map(a => `<tr>
+        <td class="small">${esc((a.label || '').slice(0, 32))}</td>
+        <td class="small text-end">${a.clicks || 0}</td>
+        <td class="small text-end">${a.impressions || 0}</td>
+        <td class="small text-end fw-bold">${a.ctr || 0}%</td></tr>`).join('')
+        || `<tr><td colspan="4" class="small text-muted">No ad data yet.</td></tr>`;
+
+      const activity = recent.map(l => `<div class="d-flex align-items-start gap-2 py-1 border-bottom">
+        <span class="act-${esc(l.action)} fw-bold small" style="min-width:64px">${esc(l.action)}</span>
+        <div class="small flex-grow-1"><span class="fw-semibold">${esc(l.user_name || '—')}</span>
+          <span class="text-muted">${esc(l.table_name || '')}${l.record_id ? ` #${l.record_id}` : ''}</span>
+          <div class="text-muted" style="font-size:.7rem">${fmtDateTime(l.created_at)}</div></div></div>`).join('')
+        || '<div class="small text-muted">No recent activity.</div>';
+
+      const members = newest.map(m => `<tr>
+        <td>${esc(m.name)}</td><td class="small text-muted">${esc(m.email)}</td>
+        <td><span class="badge bg-light text-primary border text-capitalize">${esc(m.role)}</span></td>
+        <td class="small">${fmtDate(m.created_at)}</td></tr>`).join('')
+        || `<tr><td colspan="4" class="small text-muted">No users yet.</td></tr>`;
+
       app().querySelector('.col-lg-10').innerHTML = `<h3 class="mb-3"><i class="bi bi-speedometer2 text-primary"></i> Admin Dashboard</h3>
         <div class="row">
           ${kpi(d.total_events,'Total Events','kpi-blue','calendar-event')}
@@ -386,10 +419,34 @@ const Dash = (() => {
           ${kpi(d.active_ads,'Active Ads','kpi-purple','megaphone')}
         </div>
         <div class="row">
+          ${kpi(d.total_users,'Total Users','kpi-blue','people')}
+          ${kpi(d.total_catches,'Fish Catches','kpi-green','water')}
+          ${kpi(d.total_payments,'Payments','kpi-orange','receipt')}
+          ${kpi(avgCtr,'Avg Ad CTR','kpi-purple','graph-up-arrow')}
+        </div>
+        <div class="row">
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by State</h6><canvas id="cState" height="220"></canvas></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Monthly Revenue</h6><canvas id="cRev" height="220"></canvas></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by Category</h6><canvas id="cCat" height="220"></canvas></div></div>
-        </div>`;
+        </div>
+        <div class="row">
+          <div class="col-lg-5 mb-3"><div class="card card-body">
+            <h6><i class="bi bi-megaphone text-primary"></i> Top Ad Campaigns</h6>
+            <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+              <thead class="table-light"><tr><th>Campaign</th><th class="text-end">Clicks</th><th class="text-end">Impr.</th><th class="text-end">CTR</th></tr></thead>
+              <tbody>${topAds}</tbody></table></div></div></div>
+          <div class="col-lg-3 mb-3"><div class="card card-body"><h6><i class="bi bi-water text-primary"></i> Catch Landings (kg)</h6><canvas id="cCatch" height="220"></canvas></div></div>
+          <div class="col-lg-4 mb-3"><div class="card card-body">
+            <h6><i class="bi bi-activity text-primary"></i> Recent Activity</h6>
+            <div style="max-height:250px;overflow:auto">${activity}</div></div></div>
+        </div>
+        <div class="card card-body mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-person-plus text-primary"></i> Newest Members</h6>
+            <a href="/admin/users" class="btn btn-sm btn-outline-primary">Manage all</a></div>
+          <div class="table-responsive mt-2"><table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+            <tbody>${members}</tbody></table></div></div>`;
       clearCharts();
       charts.push(new Chart(document.getElementById('cState'), { type:'bar',
         data:{ labels: byState.map(x=>x.label), datasets:[{data:byState.map(x=>x.value), backgroundColor:'#1B6CA8'}]},
@@ -399,6 +456,9 @@ const Dash = (() => {
         options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
       charts.push(new Chart(document.getElementById('cCat'), { type:'doughnut',
         data:{ labels: byCat.map(x=>x.label), datasets:[{data:byCat.map(x=>x.value), backgroundColor:['#1B6CA8','#2E75B6','#28A745','#FD7E14','#845ef7','#DC3545']}]}}));
+      if (catchTrends.length) charts.push(new Chart(document.getElementById('cCatch'), { type:'bar',
+        data:{ labels: catchTrends.map(x=>x.label), datasets:[{data:catchTrends.map(x=>x.value), backgroundColor:'#17A2B8'}]},
+        options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}}));
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
   async function approve(id){ try{ await API.post(`/admin/events/${id}/approve`); UI.toast('Event approved & published','success'); pendingEvents(); }catch(e){UI.toast(e.message,'danger');} }

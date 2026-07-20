@@ -130,7 +130,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - **Auto-renew toggle:** charges the placement price in **credits** every 7 days; **stops automatically** when credits run out (with email)
 - Pay ad fee with **Stripe** or **credits**
 - **Admin approval** required before an ad goes live
-- **Placement rendering:** homepage top banner + featured strip, events-page side banner, dedicated **Sponsored page** (nav link)
+- **Placement rendering:** homepage top banner + featured strip, **events & Catch-of-the-Day sidebar "Sponsored" rail** (a few rotating ads), dedicated **Sponsored page** (nav link)
 - **Sponsored featured events:** events that an active ad campaign promotes are **boosted to the front of the homepage's Featured Events** as "Sponsored" cards (up to 3); their clicks route through the ad's click endpoint so the campaign is credited (impression + click)
 - **Native sponsored feed posts** (`feed` placement): advertisers publish a **social-media-style promoted post** — headline + caption + image + "View Event" button — that's **interleaved among the real community posts** (one after every few posts, shuffled per load). Looks like an organic post but tagged "Sponsored"; the CTA redirects to the promoted event.
 - **Ads promote an event** (Roblox-style): the organizer picks which of their events an ad promotes, and **clicking the ad redirects to that event's page** (external URL kept as an optional fallback). Ad cards show "Promoting: [Event]" with a "View Event" button.
@@ -155,7 +155,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Composer for logged-in users; location tags link to filtered events
 
 ### 5.6 Fishery Marketplace
-- **Catch of the Day** board: fishermen post species, weight, price/kg, location, catch date, photo; mark as sold
+- **Catch of the Day** board (Events-style layout): filter **sidebar** (species, location, max price/kg, sort by newest / price low→high / high→low) with **live in-place filtering**, result count, and pagination; plus a **Sponsored ad rail** in the sidebar
 - **Fishing Spots Directory** (*kolam pancing*): curated recreational spots with a **"Get Directions"** Google Maps link (no paid Maps API)
 
 ### 5.7 Payments
@@ -175,7 +175,7 @@ Originally 5 roles; **advertiser was merged into organizer** (one role posts eve
 - Weather icons rendered via **Bootstrap Icons** (mapped from the weather code) for reliability
 
 ### 5.10 Admin & Analytics
-- **Admin dashboard:** KPI cards (total events, pending events, revenue, active ads) + three **Chart.js** charts (events by state, monthly revenue, events by category)
+- **Admin dashboard (full operations console):** **8 KPI cards** (total events, pending events, revenue, active ads, total users, fish catches, payments, avg ad CTR) + **four Chart.js charts** (events by state, monthly revenue, events by category, catch landings by species) + a **Top Ad Campaigns** table (clicks/impressions/CTR), a **Recent Activity** feed (live audit trail), and a **Newest Members** table
 - **Pending Events** and **Pending Ads** as dedicated sidebar pages with **live count badges**; approve/reject with reason
 - **User management:** list users, change status (active/suspended/banned)
 - **Analytics endpoints:** dashboard KPIs, events-by-state, events-by-category, monthly revenue, ad CTR, catch-volume trends
