@@ -102,6 +102,7 @@ const Dash = (() => {
       <div class="d-grid gap-2">
         <a href="/create-event" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Post Event</a>
         <a href="/advertiser/new" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Create Ad</a>
+        <a href="/advertiser" class="btn btn-outline-primary btn-sm"><i class="bi bi-collection"></i> Manage Campaigns</a>
         <a href="/saved" class="btn btn-outline-secondary btn-sm"><i class="bi bi-bookmark"></i> Saved Events</a>
         <a href="/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-globe"></i> View Public Site</a>
       </div></div>`;
@@ -200,7 +201,9 @@ const Dash = (() => {
         <!-- Ad campaigns -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0"><i class="bi bi-megaphone text-primary"></i> My Ad Campaigns</h5>
-          <a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div>
+          <div class="d-flex gap-2">
+            <a href="/advertiser" class="btn btn-outline-primary btn-sm"><i class="bi bi-megaphone"></i> Manage Campaigns</a>
+            <a href="/advertiser/new" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Create Ad</a></div></div>
         <div class="btn-group btn-group-sm mb-2 flex-wrap" role="group" aria-label="Filter campaigns">
           <button type="button" class="btn btn-outline-primary active" onclick="Dash.filterAds(this,'all')">All <span class="badge bg-secondary">${ad.campaigns.length}</span></button>
           <button type="button" class="btn btn-outline-success" onclick="Dash.filterAds(this,'active')">Active <span class="badge bg-success">${nActive}</span></button>
@@ -501,9 +504,9 @@ const Dash = (() => {
           ${kpi(avgCtr,'Avg Ad CTR','kpi-purple','graph-up-arrow')}
         </div>
         <div class="row">
-          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by State</h6><canvas id="cState" height="220"></canvas></div></div>
-          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Monthly Revenue</h6><canvas id="cRev" height="220"></canvas></div></div>
-          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by Category</h6><canvas id="cCat" height="220"></canvas></div></div>
+          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by State</h6><div style="height:240px"><canvas id="cState"></canvas></div></div></div>
+          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Monthly Revenue</h6><div style="height:240px"><canvas id="cRev"></canvas></div></div></div>
+          <div class="col-lg-4 mb-3"><div class="card card-body"><h6>Events by Category</h6><div style="height:240px"><canvas id="cCat"></canvas></div></div></div>
         </div>
         <div class="row">
           <div class="col-lg-5 mb-3"><div class="card card-body">
@@ -511,7 +514,7 @@ const Dash = (() => {
             <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
               <thead class="table-light"><tr><th>Campaign</th><th class="text-end">Clicks</th><th class="text-end">Impr.</th><th class="text-end">CTR</th></tr></thead>
               <tbody>${topAds}</tbody></table></div></div></div>
-          <div class="col-lg-3 mb-3"><div class="card card-body"><h6><i class="bi bi-water text-primary"></i> Catch Landings (kg)</h6><canvas id="cCatch" height="220"></canvas></div></div>
+          <div class="col-lg-3 mb-3"><div class="card card-body"><h6><i class="bi bi-water text-primary"></i> Catch Landings (kg)</h6><div style="height:240px"><canvas id="cCatch"></canvas></div></div></div>
           <div class="col-lg-4 mb-3"><div class="card card-body">
             <h6><i class="bi bi-activity text-primary"></i> Recent Activity</h6>
             <div style="max-height:250px;overflow:auto">${activity}</div></div></div>
@@ -526,15 +529,16 @@ const Dash = (() => {
       clearCharts();
       charts.push(new Chart(document.getElementById('cState'), { type:'bar',
         data:{ labels: byState.map(x=>x.label), datasets:[{data:byState.map(x=>x.value), backgroundColor:'#1B6CA8'}]},
-        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+        options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
       charts.push(new Chart(document.getElementById('cRev'), { type:'line',
         data:{ labels: revenue.map(x=>x.label), datasets:[{data:revenue.map(x=>x.value), borderColor:'#28A745', backgroundColor:'rgba(40,167,69,.1)', fill:true, tension:.3}]},
-        options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+        options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
       charts.push(new Chart(document.getElementById('cCat'), { type:'doughnut',
-        data:{ labels: byCat.map(x=>x.label), datasets:[{data:byCat.map(x=>x.value), backgroundColor:['#1B6CA8','#2E75B6','#28A745','#FD7E14','#845ef7','#DC3545']}]}}));
+        data:{ labels: byCat.map(x=>x.label), datasets:[{data:byCat.map(x=>x.value), backgroundColor:['#1B6CA8','#2E75B6','#28A745','#FD7E14','#845ef7','#DC3545']}]},
+        options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:10}}}}}}));
       if (catchTrends.length) charts.push(new Chart(document.getElementById('cCatch'), { type:'bar',
         data:{ labels: catchTrends.map(x=>x.label), datasets:[{data:catchTrends.map(x=>x.value), backgroundColor:'#17A2B8'}]},
-        options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}}));
+        options:{maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}}));
     } catch (e) { app().querySelector('.col-lg-10').innerHTML = empty(e.message,'exclamation-triangle'); }
   }
   async function approve(id){ try{ await API.post(`/admin/events/${id}/approve`); UI.toast('Event approved & published','success'); pendingEvents(); }catch(e){UI.toast(e.message,'danger');} }
