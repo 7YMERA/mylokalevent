@@ -78,7 +78,7 @@ def _send_smtp(to_email: str, subject: str, html: str) -> bool:
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        # From MUST be the authenticated SMTP user (Gmail rejects a mismatched From).
+        # From MUST be the authenticated SMTP user (Gmail/Outlook reject a mismatched From).
         msg["From"] = formataddr((settings.sendgrid_from_name, settings.smtp_user))
         msg["To"] = to_email
         msg.attach(MIMEText(html, "html"))
