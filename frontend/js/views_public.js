@@ -76,10 +76,22 @@ const Public = (() => {
     } catch (e) { document.getElementById('featured').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
-  // Click-through link wrapper that also fires an impression.
+  // Click-through link wrapper (the click endpoint records the click server-side).
   function adLink(a, inner, cls = '') {
-    return `<a href="${API.url('/advertisements/' + a.id + '/click')}" target="_blank" class="${cls} text-decoration-none"
-        onclick="fetch(API.url('/advertisements/${a.id}/impression'),{method:'POST'})">${inner}</a>`;
+    return `<a href="${API.url('/advertisements/' + a.id + '/click')}" target="_blank" class="${cls} text-decoration-none">${inner}</a>`;
+  }
+
+  // Count a view (fire-and-forget) when an ad is actually displayed.
+  function trackImpression(id) {
+    try { fetch(API.url('/advertisements/' + id + '/impression'), { method: 'POST' }); } catch {}
+  }
+
+  // Fetch the active ads for a placement and return a RANDOM one (ad-network
+  // style: a different ad shows on each page load). Returns null if none.
+  async function pickAd(placement) {
+    const ads = await API.get('/advertisements?placement=' + placement + '&page_size=20');
+    if (!ads.items.length) return null;
+    return ads.items[Math.floor(Math.random() * ads.items.length)];
   }
 
   // Top banner (placement=top) — full-width strip near the top of the home page.
@@ -87,9 +99,9 @@ const Public = (() => {
     const box = document.getElementById('topBanner');
     if (!box) return;
     try {
-      const ads = await API.get('/advertisements?placement=top&page_size=1');
-      if (!ads.items.length) { box.innerHTML = ''; return; }
-      const a = ads.items[0];
+      const a = await pickAd('top');
+      if (!a) { box.innerHTML = ''; return; }
+      trackImpression(a.id);
       const inner = `<div class="position-relative rounded shadow-sm overflow-hidden">
         <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
         ${a.image_url ? `<img src="${esc(a.image_url)}" class="w-100" style="max-height:120px;object-fit:cover">`
@@ -100,17 +112,17 @@ const Public = (() => {
 
   // Featured strip (placement=featured) between featured events and the feed.
   async function loadAdStrip() {
+    const box = document.getElementById('adStrip');
     try {
-      const ads = await API.get('/advertisements?placement=featured&page_size=1');
-      const box = document.getElementById('adStrip');
-      if (!ads.items.length) { box.innerHTML = ''; return; }
-      const a = ads.items[0];
+      const a = await pickAd('featured');
+      if (!a) { if (box) box.innerHTML = ''; return; }
+      trackImpression(a.id);
       const inner = `<div class="d-block position-relative">
         <span class="badge bg-dark position-absolute top-0 start-0 m-2 opacity-75">Sponsored</span>
         ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded shadow-sm w-100" style="max-height:140px;object-fit:cover">`
           : `<div class="card card-body text-center text-primary">${esc(a.title)}</div>`}</div>`;
       box.innerHTML = adLink(a, inner, 'd-block');
-    } catch { document.getElementById('adStrip').innerHTML = ''; }
+    } catch { if (box) box.innerHTML = ''; }
   }
 
   // ---------- Sponsored page (dedicated ad showcase) ----------
@@ -142,6 +154,7 @@ const Public = (() => {
       document.getElementById('sponsoredGrid').innerHTML = data.items.length
         ? data.items.map(adCard).join('')
         : empty('No sponsored ads right now. Advertise your business here!', 'megaphone');
+      data.items.forEach(a => trackImpression(a.id));   // each shown card is a view
     } catch (e) { document.getElementById('sponsoredGrid').innerHTML = empty(e.message, 'exclamation-triangle'); }
   }
 
@@ -388,12 +401,12 @@ const Public = (() => {
         cats.map(c => `<option value="${c.id}" ${String(c.id) === String(f.category_id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
     } catch {}
 
-    // Side banner ad (placement=side)
+    // Side banner ad (placement=side) — random one per load
     try {
-      const ads = await API.get('/advertisements?placement=side&page_size=1');
+      const a = await pickAd('side');
       const box = document.getElementById('sideBanner');
-      if (box && ads.items.length) {
-        const a = ads.items[0];
+      if (box && a) {
+        trackImpression(a.id);
         const inner = `<div class="card card-body p-2 position-relative">
           <span class="badge bg-dark position-absolute top-0 end-0 m-1 opacity-75" style="font-size:.6rem">Ad</span>
           ${a.image_url ? `<img src="${esc(a.image_url)}" class="img-fluid rounded mb-1">` : ''}
