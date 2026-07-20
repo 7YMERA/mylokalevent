@@ -115,13 +115,14 @@ const UI = (() => {
     }
   }
 
-  // Country dialing codes (Malaysia first / default; common neighbours & others).
+  // Country dialing codes, sorted alphabetically by country. Malaysia (+60)
+  // is the default selection (see phoneField's defaultCode), not the first row.
   const COUNTRY_CODES = [
-    ['MY', '+60'], ['SG', '+65'], ['ID', '+62'], ['TH', '+66'], ['BN', '+673'],
-    ['PH', '+63'], ['VN', '+84'], ['KH', '+855'], ['MM', '+95'], ['IN', '+91'],
-    ['CN', '+86'], ['JP', '+81'], ['KR', '+82'], ['HK', '+852'], ['TW', '+886'],
-    ['AU', '+61'], ['NZ', '+64'], ['GB', '+44'], ['US', '+1'], ['AE', '+971'],
-    ['SA', '+966'], ['PK', '+92'], ['BD', '+880'],
+    ['AE', '+971'], ['AU', '+61'], ['BD', '+880'], ['BN', '+673'], ['CN', '+86'],
+    ['GB', '+44'], ['HK', '+852'], ['ID', '+62'], ['IN', '+91'], ['JP', '+81'],
+    ['KH', '+855'], ['KR', '+82'], ['MM', '+95'], ['MY', '+60'], ['NZ', '+64'],
+    ['PH', '+63'], ['PK', '+92'], ['SA', '+966'], ['SG', '+65'], ['TH', '+66'],
+    ['TW', '+886'], ['US', '+1'], ['VN', '+84'],
   ];
 
   // A phone input: [country-code dropdown][number]. Defaults to Malaysia (+60).
