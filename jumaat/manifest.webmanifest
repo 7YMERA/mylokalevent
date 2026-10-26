@@ -1,0 +1,9 @@
+{
+  "name": "Jumaat Finder",
+  "short_name": "Jumaat",
+  "description": "Find a mosque near you for Solat Jumaat.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#0f766e"
+}

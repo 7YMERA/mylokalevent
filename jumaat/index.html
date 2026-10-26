@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Jumaat Finder</title>
+  <meta name="description" content="Find a mosque near you for Solat Jumaat — distance, walking time, and when to leave.">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🕌</span>
+      <div>
+        <h1>Jumaat Finder</h1>
+        <p class="sub" id="placeLabel">Finding where you are…</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Countdown to the Friday khutbah -->
+    <section class="card hero" id="hero">
+      <div class="hero-row">
+        <div>
+          <div class="label" id="fridayLabel">Next Friday</div>
+          <div class="big" id="zuhrTime">--:--</div>
+          <div class="muted" id="zuhrNote">Zuhr / azan Jumaat</div>
+        </div>
+        <div class="countdown">
+          <div class="label">Starts in</div>
+          <div class="big" id="countdown">--</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Location controls -->
+    <section class="controls">
+      <button class="btn primary" id="btnLocate">📍 Use my location</button>
+      <select id="presetSelect" aria-label="Pick a place">
+        <option value="">…or pick a place</option>
+      </select>
+    </section>
+
+    <section class="filters">
+      <label><input type="checkbox" id="showSurau"> Show surau too</label>
+      <label>Buffer before azan
+        <select id="bufferSelect">
+          <option value="5">5 min</option>
+          <option value="10" selected>10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+        </select>
+      </label>
+    </section>
+
+    <div id="map" class="map" role="region" aria-label="Map of nearby mosques"></div>
+
+    <p class="status" id="status" role="status"></p>
+
+    <ul class="list" id="list"></ul>
+
+    <section class="card tips">
+      <h2>Tips for busy areas</h2>
+      <ul>
+        <li>Big mosques near malls fill up fast — the inner hall is often full ~10 min before azan. Aim to arrive early.</li>
+        <li>Mall surau usually do <strong>not</strong> hold Jumaat. Go to a masjid.</li>
+        <li>Leave a note on each mosque (parking, overflow area, how early it fills) — it's saved on your phone for next Friday.</li>
+        <li>Always confirm the time with the mosque; khutbah can start a few minutes after Zuhr.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Prayer times: <a href="https://waktusolat.app" target="_blank" rel="noopener">waktusolat.app</a> (JAKIM data) ·
+    Mosques: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
+  </footer>
+
+  <template id="itemTpl">
+    <li class="item">
+      <div class="item-head">
+        <div>
+          <div class="name"></div>
+          <div class="meta"></div>
+        </div>
+        <span class="chip"></span>
+      </div>
+      <div class="leave"></div>
+      <div class="note-view"></div>
+      <div class="actions">
+        <a class="btn small" data-act="gmaps" target="_blank" rel="noopener">Google Maps</a>
+        <a class="btn small" data-act="waze" target="_blank" rel="noopener">Waze</a>
+        <button class="btn small" data-act="ics">⏰ Remind me</button>
+        <button class="btn small ghost" data-act="note">✏️ Note</button>
+      </div>
+    </li>
+  </template>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
